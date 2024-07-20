@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package cspkg;
+
+message AccountLoginReq {
+   fixed32 account = 1;
+   string session_key = 2;
+}
+
+message AccountLoginRes {
+   fixed32 account = 1;
+   int32 result = 2;
+}

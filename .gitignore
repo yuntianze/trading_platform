@@ -1,0 +1,15 @@
+# Ignore build directory
+build/
+
+# Ignore log files
+log/
+
+# Ignore vscode settings
+.vscode/
+
+# Ignore other common files and directories
+*.log
+*.tmp
+*.swp
+*.bak
+*.dSYM/
