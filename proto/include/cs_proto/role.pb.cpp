@@ -16,43 +16,37 @@
 #include <google/protobuf/port_def.inc>
 
 PROTOBUF_PRAGMA_INIT_SEG
-
-namespace _pb = ::PROTOBUF_NAMESPACE_ID;
-namespace _pbi = _pb::internal;
-
 namespace cspkg {
-PROTOBUF_CONSTEXPR AccountLoginReq::AccountLoginReq(
-    ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.session_key_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
-  , /*decltype(_impl_.account_)*/0u
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+constexpr AccountLoginReq::AccountLoginReq(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : session_key_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , account_(0u){}
 struct AccountLoginReqDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR AccountLoginReqDefaultTypeInternal()
-      : _instance(::_pbi::ConstantInitialized{}) {}
+  constexpr AccountLoginReqDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
   ~AccountLoginReqDefaultTypeInternal() {}
   union {
     AccountLoginReq _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AccountLoginReqDefaultTypeInternal _AccountLoginReq_default_instance_;
-PROTOBUF_CONSTEXPR AccountLoginRes::AccountLoginRes(
-    ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.account_)*/0u
-  , /*decltype(_impl_.result_)*/0
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AccountLoginReqDefaultTypeInternal _AccountLoginReq_default_instance_;
+constexpr AccountLoginRes::AccountLoginRes(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : account_(0u)
+  , result_(0){}
 struct AccountLoginResDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR AccountLoginResDefaultTypeInternal()
-      : _instance(::_pbi::ConstantInitialized{}) {}
+  constexpr AccountLoginResDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
   ~AccountLoginResDefaultTypeInternal() {}
   union {
     AccountLoginRes _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AccountLoginResDefaultTypeInternal _AccountLoginRes_default_instance_;
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AccountLoginResDefaultTypeInternal _AccountLoginRes_default_instance_;
 }  // namespace cspkg
-static ::_pb::Metadata file_level_metadata_cs_5fproto_2frole_2eproto[2];
-static constexpr ::_pb::EnumDescriptor const** file_level_enum_descriptors_cs_5fproto_2frole_2eproto = nullptr;
-static constexpr ::_pb::ServiceDescriptor const** file_level_service_descriptors_cs_5fproto_2frole_2eproto = nullptr;
+static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_cs_5fproto_2frole_2eproto[2];
+static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_cs_5fproto_2frole_2eproto = nullptr;
+static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_cs_5fproto_2frole_2eproto = nullptr;
 
 const uint32_t TableStruct_cs_5fproto_2frole_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   ~0u,  // no _has_bits_
@@ -61,25 +55,25 @@ const uint32_t TableStruct_cs_5fproto_2frole_2eproto::offsets[] PROTOBUF_SECTION
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginReq, _impl_.account_),
-  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginReq, _impl_.session_key_),
+  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginReq, account_),
+  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginReq, session_key_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginRes, _internal_metadata_),
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginRes, _impl_.account_),
-  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginRes, _impl_.result_),
+  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginRes, account_),
+  PROTOBUF_FIELD_OFFSET(::cspkg::AccountLoginRes, result_),
 };
-static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
+static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::cspkg::AccountLoginReq)},
   { 8, -1, -1, sizeof(::cspkg::AccountLoginRes)},
 };
 
-static const ::_pb::Message* const file_default_instances[] = {
-  &::cspkg::_AccountLoginReq_default_instance_._instance,
-  &::cspkg::_AccountLoginRes_default_instance_._instance,
+static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::cspkg::_AccountLoginReq_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::cspkg::_AccountLoginRes_default_instance_),
 };
 
 const char descriptor_table_protodef_cs_5fproto_2frole_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
@@ -88,21 +82,19 @@ const char descriptor_table_protodef_cs_5fproto_2frole_2eproto[] PROTOBUF_SECTIO
   "\002 \001(\t\"2\n\017AccountLoginRes\022\017\n\007account\030\001 \001("
   "\007\022\016\n\006result\030\002 \001(\005b\006proto3"
   ;
-static ::_pbi::once_flag descriptor_table_cs_5fproto_2frole_2eproto_once;
-const ::_pbi::DescriptorTable descriptor_table_cs_5fproto_2frole_2eproto = {
-    false, false, 145, descriptor_table_protodef_cs_5fproto_2frole_2eproto,
-    "cs_proto/role.proto",
-    &descriptor_table_cs_5fproto_2frole_2eproto_once, nullptr, 0, 2,
-    schemas, file_default_instances, TableStruct_cs_5fproto_2frole_2eproto::offsets,
-    file_level_metadata_cs_5fproto_2frole_2eproto, file_level_enum_descriptors_cs_5fproto_2frole_2eproto,
-    file_level_service_descriptors_cs_5fproto_2frole_2eproto,
+static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_cs_5fproto_2frole_2eproto_once;
+const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_cs_5fproto_2frole_2eproto = {
+  false, false, 145, descriptor_table_protodef_cs_5fproto_2frole_2eproto, "cs_proto/role.proto", 
+  &descriptor_table_cs_5fproto_2frole_2eproto_once, nullptr, 0, 2,
+  schemas, file_default_instances, TableStruct_cs_5fproto_2frole_2eproto::offsets,
+  file_level_metadata_cs_5fproto_2frole_2eproto, file_level_enum_descriptors_cs_5fproto_2frole_2eproto, file_level_service_descriptors_cs_5fproto_2frole_2eproto,
 };
-PROTOBUF_ATTRIBUTE_WEAK const ::_pbi::DescriptorTable* descriptor_table_cs_5fproto_2frole_2eproto_getter() {
+PROTOBUF_ATTRIBUTE_WEAK const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable* descriptor_table_cs_5fproto_2frole_2eproto_getter() {
   return &descriptor_table_cs_5fproto_2frole_2eproto;
 }
 
 // Force running AddDescriptors() at dynamic initialization time.
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY2 static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_cs_5fproto_2frole_2eproto(&descriptor_table_cs_5fproto_2frole_2eproto);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_cs_5fproto_2frole_2eproto(&descriptor_table_cs_5fproto_2frole_2eproto);
 namespace cspkg {
 
 // ===================================================================
@@ -114,61 +106,55 @@ class AccountLoginReq::_Internal {
 AccountLoginReq::AccountLoginReq(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
-  SharedCtor(arena, is_message_owned);
+  SharedCtor();
+  if (!is_message_owned) {
+    RegisterArenaDtor(arena);
+  }
   // @@protoc_insertion_point(arena_constructor:cspkg.AccountLoginReq)
 }
 AccountLoginReq::AccountLoginReq(const AccountLoginReq& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
-  AccountLoginReq* const _this = this; (void)_this;
-  new (&_impl_) Impl_{
-      decltype(_impl_.session_key_){}
-    , decltype(_impl_.account_){}
-    , /*decltype(_impl_._cached_size_)*/{}};
-
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  _impl_.session_key_.InitDefault();
+  session_key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    _impl_.session_key_.Set("", GetArenaForAllocation());
+    session_key_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
   #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_session_key().empty()) {
-    _this->_impl_.session_key_.Set(from._internal_session_key(), 
-      _this->GetArenaForAllocation());
+    session_key_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_session_key(), 
+      GetArenaForAllocation());
   }
-  _this->_impl_.account_ = from._impl_.account_;
+  account_ = from.account_;
   // @@protoc_insertion_point(copy_constructor:cspkg.AccountLoginReq)
 }
 
-inline void AccountLoginReq::SharedCtor(
-    ::_pb::Arena* arena, bool is_message_owned) {
-  (void)arena;
-  (void)is_message_owned;
-  new (&_impl_) Impl_{
-      decltype(_impl_.session_key_){}
-    , decltype(_impl_.account_){0u}
-    , /*decltype(_impl_._cached_size_)*/{}
-  };
-  _impl_.session_key_.InitDefault();
-  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    _impl_.session_key_.Set("", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+inline void AccountLoginReq::SharedCtor() {
+session_key_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  session_key_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+account_ = 0u;
 }
 
 AccountLoginReq::~AccountLoginReq() {
   // @@protoc_insertion_point(destructor:cspkg.AccountLoginReq)
-  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
-  (void)arena;
-    return;
-  }
+  if (GetArenaForAllocation() != nullptr) return;
   SharedDtor();
+  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void AccountLoginReq::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  _impl_.session_key_.Destroy();
+  session_key_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
+void AccountLoginReq::ArenaDtor(void* object) {
+  AccountLoginReq* _this = reinterpret_cast< AccountLoginReq* >(object);
+  (void)_this;
+}
+void AccountLoginReq::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
 void AccountLoginReq::SetCachedSize(int size) const {
-  _impl_._cached_size_.Set(size);
+  _cached_size_.Set(size);
 }
 
 void AccountLoginReq::Clear() {
@@ -177,21 +163,21 @@ void AccountLoginReq::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  _impl_.session_key_.ClearToEmpty();
-  _impl_.account_ = 0u;
+  session_key_.ClearToEmpty();
+  account_ = 0u;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* AccountLoginReq::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+const char* AccountLoginReq::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
     uint32_t tag;
-    ptr = ::_pbi::ReadTag(ptr, &tag);
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // fixed32 account = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 13)) {
-          _impl_.account_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
+          account_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
           ptr += sizeof(uint32_t);
         } else
           goto handle_unusual;
@@ -200,9 +186,9 @@ const char* AccountLoginReq::_InternalParse(const char* ptr, ::_pbi::ParseContex
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
           auto str = _internal_mutable_session_key();
-          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "cspkg.AccountLoginReq.session_key"));
           CHK_(ptr);
-          CHK_(::_pbi::VerifyUTF8(str, "cspkg.AccountLoginReq.session_key"));
         } else
           goto handle_unusual;
         continue;
@@ -238,7 +224,7 @@ uint8_t* AccountLoginReq::_InternalSerialize(
   // fixed32 account = 1;
   if (this->_internal_account() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteFixed32ToArray(1, this->_internal_account(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed32ToArray(1, this->_internal_account(), target);
   }
 
   // string session_key = 2;
@@ -252,7 +238,7 @@ uint8_t* AccountLoginReq::_InternalSerialize(
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:cspkg.AccountLoginReq)
@@ -279,31 +265,35 @@ size_t AccountLoginReq::ByteSizeLong() const {
     total_size += 1 + 4;
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData AccountLoginReq::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
     AccountLoginReq::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AccountLoginReq::GetClassData() const { return &_class_data_; }
 
+void AccountLoginReq::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
+                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+  static_cast<AccountLoginReq *>(to)->MergeFrom(
+      static_cast<const AccountLoginReq &>(from));
+}
 
-void AccountLoginReq::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
-  auto* const _this = static_cast<AccountLoginReq*>(&to_msg);
-  auto& from = static_cast<const AccountLoginReq&>(from_msg);
-  // @@protoc_insertion_point(class_specific_merge_from_start:cspkg.AccountLoginReq)
-  GOOGLE_DCHECK_NE(&from, _this);
+
+void AccountLoginReq::MergeFrom(const AccountLoginReq& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:cspkg.AccountLoginReq)
+  GOOGLE_DCHECK_NE(&from, this);
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   if (!from._internal_session_key().empty()) {
-    _this->_internal_set_session_key(from._internal_session_key());
+    _internal_set_session_key(from._internal_session_key());
   }
   if (from._internal_account() != 0) {
-    _this->_internal_set_account(from._internal_account());
+    _internal_set_account(from._internal_account());
   }
-  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void AccountLoginReq::CopyFrom(const AccountLoginReq& from) {
@@ -323,14 +313,15 @@ void AccountLoginReq::InternalSwap(AccountLoginReq* other) {
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &_impl_.session_key_, lhs_arena,
-      &other->_impl_.session_key_, rhs_arena
+      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      &session_key_, lhs_arena,
+      &other->session_key_, rhs_arena
   );
-  swap(_impl_.account_, other->_impl_.account_);
+  swap(account_, other->account_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata AccountLoginReq::GetMetadata() const {
-  return ::_pbi::AssignDescriptors(
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_cs_5fproto_2frole_2eproto_getter, &descriptor_table_cs_5fproto_2frole_2eproto_once,
       file_level_metadata_cs_5fproto_2frole_2eproto[0]);
 }
@@ -344,50 +335,47 @@ class AccountLoginRes::_Internal {
 AccountLoginRes::AccountLoginRes(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
-  SharedCtor(arena, is_message_owned);
+  SharedCtor();
+  if (!is_message_owned) {
+    RegisterArenaDtor(arena);
+  }
   // @@protoc_insertion_point(arena_constructor:cspkg.AccountLoginRes)
 }
 AccountLoginRes::AccountLoginRes(const AccountLoginRes& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
-  AccountLoginRes* const _this = this; (void)_this;
-  new (&_impl_) Impl_{
-      decltype(_impl_.account_){}
-    , decltype(_impl_.result_){}
-    , /*decltype(_impl_._cached_size_)*/{}};
-
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&_impl_.account_, &from._impl_.account_,
-    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.result_) -
-    reinterpret_cast<char*>(&_impl_.account_)) + sizeof(_impl_.result_));
+  ::memcpy(&account_, &from.account_,
+    static_cast<size_t>(reinterpret_cast<char*>(&result_) -
+    reinterpret_cast<char*>(&account_)) + sizeof(result_));
   // @@protoc_insertion_point(copy_constructor:cspkg.AccountLoginRes)
 }
 
-inline void AccountLoginRes::SharedCtor(
-    ::_pb::Arena* arena, bool is_message_owned) {
-  (void)arena;
-  (void)is_message_owned;
-  new (&_impl_) Impl_{
-      decltype(_impl_.account_){0u}
-    , decltype(_impl_.result_){0}
-    , /*decltype(_impl_._cached_size_)*/{}
-  };
+inline void AccountLoginRes::SharedCtor() {
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&account_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&result_) -
+    reinterpret_cast<char*>(&account_)) + sizeof(result_));
 }
 
 AccountLoginRes::~AccountLoginRes() {
   // @@protoc_insertion_point(destructor:cspkg.AccountLoginRes)
-  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
-  (void)arena;
-    return;
-  }
+  if (GetArenaForAllocation() != nullptr) return;
   SharedDtor();
+  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void AccountLoginRes::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
 }
 
+void AccountLoginRes::ArenaDtor(void* object) {
+  AccountLoginRes* _this = reinterpret_cast< AccountLoginRes* >(object);
+  (void)_this;
+}
+void AccountLoginRes::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
 void AccountLoginRes::SetCachedSize(int size) const {
-  _impl_._cached_size_.Set(size);
+  _cached_size_.Set(size);
 }
 
 void AccountLoginRes::Clear() {
@@ -396,22 +384,22 @@ void AccountLoginRes::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  ::memset(&_impl_.account_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&_impl_.result_) -
-      reinterpret_cast<char*>(&_impl_.account_)) + sizeof(_impl_.result_));
+  ::memset(&account_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&result_) -
+      reinterpret_cast<char*>(&account_)) + sizeof(result_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* AccountLoginRes::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+const char* AccountLoginRes::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
     uint32_t tag;
-    ptr = ::_pbi::ReadTag(ptr, &tag);
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // fixed32 account = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 13)) {
-          _impl_.account_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
+          account_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
           ptr += sizeof(uint32_t);
         } else
           goto handle_unusual;
@@ -419,7 +407,7 @@ const char* AccountLoginRes::_InternalParse(const char* ptr, ::_pbi::ParseContex
       // int32 result = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
-          _impl_.result_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          result_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -456,17 +444,17 @@ uint8_t* AccountLoginRes::_InternalSerialize(
   // fixed32 account = 1;
   if (this->_internal_account() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteFixed32ToArray(1, this->_internal_account(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed32ToArray(1, this->_internal_account(), target);
   }
 
   // int32 result = 2;
   if (this->_internal_result() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(2, this->_internal_result(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt32ToArray(2, this->_internal_result(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:cspkg.AccountLoginRes)
@@ -488,34 +476,38 @@ size_t AccountLoginRes::ByteSizeLong() const {
 
   // int32 result = 2;
   if (this->_internal_result() != 0) {
-    total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_result());
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32SizePlusOne(this->_internal_result());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData AccountLoginRes::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
     AccountLoginRes::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AccountLoginRes::GetClassData() const { return &_class_data_; }
 
+void AccountLoginRes::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
+                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+  static_cast<AccountLoginRes *>(to)->MergeFrom(
+      static_cast<const AccountLoginRes &>(from));
+}
 
-void AccountLoginRes::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
-  auto* const _this = static_cast<AccountLoginRes*>(&to_msg);
-  auto& from = static_cast<const AccountLoginRes&>(from_msg);
-  // @@protoc_insertion_point(class_specific_merge_from_start:cspkg.AccountLoginRes)
-  GOOGLE_DCHECK_NE(&from, _this);
+
+void AccountLoginRes::MergeFrom(const AccountLoginRes& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:cspkg.AccountLoginRes)
+  GOOGLE_DCHECK_NE(&from, this);
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   if (from._internal_account() != 0) {
-    _this->_internal_set_account(from._internal_account());
+    _internal_set_account(from._internal_account());
   }
   if (from._internal_result() != 0) {
-    _this->_internal_set_result(from._internal_result());
+    _internal_set_result(from._internal_result());
   }
-  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void AccountLoginRes::CopyFrom(const AccountLoginRes& from) {
@@ -533,15 +525,15 @@ void AccountLoginRes::InternalSwap(AccountLoginRes* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(AccountLoginRes, _impl_.result_)
-      + sizeof(AccountLoginRes::_impl_.result_)
-      - PROTOBUF_FIELD_OFFSET(AccountLoginRes, _impl_.account_)>(
-          reinterpret_cast<char*>(&_impl_.account_),
-          reinterpret_cast<char*>(&other->_impl_.account_));
+      PROTOBUF_FIELD_OFFSET(AccountLoginRes, result_)
+      + sizeof(AccountLoginRes::result_)
+      - PROTOBUF_FIELD_OFFSET(AccountLoginRes, account_)>(
+          reinterpret_cast<char*>(&account_),
+          reinterpret_cast<char*>(&other->account_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata AccountLoginRes::GetMetadata() const {
-  return ::_pbi::AssignDescriptors(
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_cs_5fproto_2frole_2eproto_getter, &descriptor_table_cs_5fproto_2frole_2eproto_once,
       file_level_metadata_cs_5fproto_2frole_2eproto[1]);
 }
@@ -549,12 +541,10 @@ void AccountLoginRes::InternalSwap(AccountLoginRes* other) {
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace cspkg
 PROTOBUF_NAMESPACE_OPEN
-template<> PROTOBUF_NOINLINE ::cspkg::AccountLoginReq*
-Arena::CreateMaybeMessage< ::cspkg::AccountLoginReq >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::cspkg::AccountLoginReq* Arena::CreateMaybeMessage< ::cspkg::AccountLoginReq >(Arena* arena) {
   return Arena::CreateMessageInternal< ::cspkg::AccountLoginReq >(arena);
 }
-template<> PROTOBUF_NOINLINE ::cspkg::AccountLoginRes*
-Arena::CreateMaybeMessage< ::cspkg::AccountLoginRes >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::cspkg::AccountLoginRes* Arena::CreateMaybeMessage< ::cspkg::AccountLoginRes >(Arena* arena) {
   return Arena::CreateMessageInternal< ::cspkg::AccountLoginRes >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
