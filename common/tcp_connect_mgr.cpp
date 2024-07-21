@@ -48,7 +48,8 @@ int TcpConnectMgr::count_size(void) {
 }
 
 void* TcpConnectMgr::operator new(size_t size) {
-    return static_cast<void*>(current_shmptr_ + size);
+    (void)size;  // Explicitly marking size as unused
+    return static_cast<void*>(current_shmptr_);
 }
 
 void TcpConnectMgr::operator delete(void* mem) {
