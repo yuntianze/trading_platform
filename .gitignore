@@ -1,5 +1,6 @@
 # Ignore build directory
 build/
+bin/
 
 # Ignore log files
 log/
