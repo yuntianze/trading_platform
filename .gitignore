@@ -17,3 +17,5 @@ proto/include/*
 *.swp
 *.bak
 *.dSYM/
+*.lock
+tcppipe*

@@ -1,11 +1,19 @@
 #include "logger.h"
+#include <iostream>
 
 std::shared_ptr<spdlog::logger> Logger::logger;
 
 void Logger::init(const std::string& logFilePath) {
-    logger = spdlog::basic_logger_mt("file_logger", logFilePath);
-    logger->set_level(spdlog::level::debug);  // Set global log level to debug
-    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] %l: %v");
+    try {
+        logger = spdlog::basic_logger_mt("file_logger", logFilePath);
+        logger->set_level(spdlog::level::debug);  // Set global log level to debug
+        logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] %l: %v");
+        spdlog::flush_every(std::chrono::seconds(3));  // Flush every 3 seconds
+    }
+    catch (const spdlog::spdlog_ex& ex) {
+        std::cerr << "Logger initialization failed: " << ex.what() << std::endl;
+        throw;
+    }
 }
 
 void Logger::log(LogLevel level, const std::string& message) {

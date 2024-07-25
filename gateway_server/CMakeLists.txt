@@ -8,11 +8,15 @@ cmake_minimum_required(VERSION 3.10)
 project(GatewayServer)
 
 # 设置C++标准
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
-# 添加spdlog和protobuf依赖
+# 添加依赖库
 find_package(spdlog REQUIRED)
 find_package(Protobuf REQUIRED)
+
+# 设置 libuv 的路径
+set(LIBUV_INCLUDE_DIR "/usr/local/include")
+set(LIBUV_LIBRARY "/usr/local/lib/libuv.so")
 
 # 包含头文件目录
 include_directories(
@@ -22,6 +26,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../proto/include/cs_proto
     ${PROJECT_SOURCE_DIR}/../proto/include/ss_proto
     ${Protobuf_INCLUDE_DIRS}
+    ${LIBUV_INCLUDE_DIR}
 )
 
 # 查找所有源文件
@@ -38,10 +43,11 @@ add_executable(gateway_server
     ${SS_PROTO_SOURCES}
 )
 
-# 链接spdlog和protobuf库
+# 链接spdlog、protobuf和libuv库
 target_link_libraries(gateway_server
     spdlog::spdlog
     ${Protobuf_LIBRARIES}
+    ${LIBUV_LIBRARY}
 )
 
 # 添加编译选项

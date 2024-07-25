@@ -1,56 +1,59 @@
 /*************************************************************************
  * @file    tcp_server.h
- * @brief   tcp通讯服务器
+ * @brief   TcpServer class declaration
  * @author  stanjiang
  * @date    2024-07-20
  * @copyright
 ***/
 
-#ifndef GATEWAY_SERVER_TCP_SERVER_H_
-#define GATEWAY_SERVER_TCP_SERVER_H_
+#ifndef _GATEWAY_SERVER_TCP_SERVER_H_
+#define _GATEWAY_SERVER_TCP_SERVER_H_
 
+#include <uv.h>
+#include "tcp_connect_mgr.h"
 
-// 服务器启动模式
+// Server start modes
 enum ServerStartModel {
     SERVER_START_NODAEMON = 0,
     SERVER_START_DAEMON = 1,
     SERVER_START_INVALID
 };
 
-
 class TcpServer {
- public:
-    ~TcpServer() {}
+public:
+    ~TcpServer();
 
-    static TcpServer& instance(void) {
-        static TcpServer s_inst;
-        return s_inst;
-    }
+    // Get the singleton instance of TcpServer
+    static TcpServer& instance();
 
-    /***
-     * @brief   初始化tcpsver
-     * @param   model: 服务器启动模式
-     * @return   0: ok , -1: error
-     ***/
+    // Initialize the server
     int init(ServerStartModel model);
 
- private:
-    /***
-     * @brief   初始化tcpsver为后台服务
-     * @param   model: 服务器启动模式
-     * @return   0: ok , -1: error
-     ***/
+    // Run the server main loop
+    void run();
+
+    // Get the uv loop
+    uv_loop_t* get_loop() { return loop_; }
+
+private:
+    TcpServer();
+    TcpServer(const TcpServer&) = delete;
+    TcpServer& operator=(const TcpServer&) = delete;
+
+    // Initialize the server as a daemon
     int init_daemon(ServerStartModel model);
 
-    static void sigusr1_handle(int iSigVal);
-    static void sigusr2_handle(int iSigVal);
+    // Callback for new connections
+    static void on_new_connection(uv_stream_t* server, int status);
 
- private:
-    TcpServer() {}
-    TcpServer(const TcpServer&);
-    TcpServer& operator=(const TcpServer&);
+    // Signal handlers
+    static void sigusr1_handle(int sigval);
+    static void sigusr2_handle(int sigval);
+
+    uv_loop_t* loop_;        // Main event loop
+    uv_tcp_t server_;        // TCP server handle
+    TcpConnectMgr* conn_mgr_; // Connection manager
 };
 
-
-#endif  // GATEWAY_SERVER_TCP_SERVER_H_
+#endif  // _GATEWAY_SERVER_TCP_SERVER_H_
 
