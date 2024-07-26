@@ -43,7 +43,7 @@ typedef std::uint64_t ULONG;
 // System constant parameter definitions
 
 // Connection IP and Port
-const char CONNECT_IP[] = "127.0.0.1";
+const char CONNECT_IP[] = "140.238.154.0";
 const USHORT CONNECT_PORT = 8000;
 
 // Number of test connections for tcpclient
@@ -58,8 +58,6 @@ const int SOCK_RECV_BUFFER = 512*1024;
 const int SOCK_SEND_BUFFER = 512*1024;
 const int STR_COMM_LEN = 128;
 const int LISTEN_BACKLOG = 512;
-
-const char TCPSVR_PIPE_FILE[] = "tcppipefile";
 
 // Shared memory key for client usage
 const int CLIENT_SHM_KEY = 1110;

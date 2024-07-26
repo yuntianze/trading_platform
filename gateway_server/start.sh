@@ -1,22 +1,29 @@
 #!/bin/bash
 
-# 定义变量
+# Define variables
 SERVER_NAME="gateway_server"
 SERVER_PATH="./bin"
 PID_FILE="/var/run/${SERVER_NAME}.pid"
 LOG_FILE="/var/log/${SERVER_NAME}.log"
 
-# 检查服务是否已经在运行
+# Check if the process is already running
 if [ -f $PID_FILE ]; then
-    echo "$SERVER_NAME is already running, PID: $(cat $PID_FILE)"
-    exit 1
+    PID=$(cat $PID_FILE)
+    # Use ps to check if the process with the PID exists
+    if ps -p $PID > /dev/null; then 
+        echo "$SERVER_NAME is already running, PID: $PID"
+        exit 1
+    else
+        echo "PID file exists, but process not running. Removing PID file."
+        rm $PID_FILE  # Remove stale PID file
+    fi
 fi
 
-# 启动服务
+# Start the server
 echo "Starting $SERVER_NAME..."
 $SERVER_PATH/$SERVER_NAME > $LOG_FILE 2>&1 &
 
-# 获取PID并保存
+# Get PID and save it
 PID=$!
 echo $PID > $PID_FILE
 

@@ -2,7 +2,7 @@
 #include <string>
 #include "logger.h"
 
-const char* LOGFILE = "../log/tcpsvr.log";
+const char* LOGFILE = "./log/tcpsvr.log";
 
 using std::string;
 
@@ -67,7 +67,7 @@ int TcpServer::init(ServerStartModel model) {
 
     // Bind server to address
     struct sockaddr_in addr;
-    uv_ip4_addr(CONNECT_IP, CONNECT_PORT, &addr);
+    uv_ip4_addr("0.0.0.0", CONNECT_PORT, &addr);
     if (uv_tcp_bind(&server_, (const struct sockaddr*)&addr, 0) != 0) {
         Logger::log(ERROR, "Failed to bind server");
         return -1;
@@ -103,54 +103,77 @@ void TcpServer::run() {
 }
 
 int TcpServer::init_daemon(ServerStartModel model) {
-    string cmd = "touch ";
-    cmd += TCPSVR_PIPE_FILE;
-    system(cmd.c_str());
-    int lock_fd = open("./tcplock.lock", O_RDWR|O_CREAT, 0640);
+    // Check if another instance is running
+    const char* lockFilePath = "./tcplock.lock";
+    int lock_fd = open(lockFilePath, O_RDWR | O_CREAT, 0640);
     if (lock_fd < 0) {
-        Logger::log(ERROR, "Open Lock File Failed, Tcp Server Init Failed!");
+        Logger::log(ERROR, "Open lock file failed: {}", strerror(errno));
+        return -1;
+    }
+    if (flock(lock_fd, LOCK_EX | LOCK_NB) < 0) {
+        Logger::log(ERROR, "Lock file failed, another instance is running.");
+        close(lock_fd);
         return -1;
     }
 
-    int ret = flock(lock_fd, LOCK_EX | LOCK_NB);
-    if (ret < 0) {
-        Logger::log(ERROR, "Lock File Failed, Tcp Server is already Running!");
+    // Daemonize if requested
+    if (model != SERVER_START_DAEMON) {
+        return 0; // Not daemonizing
+    }
+
+    // Fork child process
+    pid_t pid = fork();
+    if (pid < 0) {
+        Logger::log(ERROR, "Fork failed: {}", strerror(errno));
+        close(lock_fd);
+        return -1;
+    } else if (pid > 0) {
+        // Parent process exits
+        _exit(EXIT_SUCCESS);
+    }
+
+    // Child process continues
+
+    // Create new session
+    if (setsid() < 0) {
+        Logger::log(ERROR, "Setsid failed: {}", strerror(errno));
         return -1;
     }
 
-    if (SERVER_START_DAEMON != model) {
-        return 0;
+    // Change working directory
+    if (chdir("/") < 0) {
+        Logger::log(ERROR, "Chdir failed: {}", strerror(errno));
+        return -1;
     }
 
-    pid_t pid;
-    if ((pid = fork()) != 0) {
-        exit(0);
+    // Close standard file descriptors
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    // Redirect standard file descriptors to /dev/null
+    open("/dev/null", O_RDONLY); // stdin
+    open("/dev/null", O_WRONLY); // stdout
+    open("/dev/null", O_WRONLY); // stderr
+
+    // Ignore SIGHUP signal
+    signal(SIGHUP, SIG_IGN);
+
+    // Fork again to avoid becoming a session leader
+    pid = fork();
+    if (pid < 0) {
+        Logger::log(ERROR, "Fork failed: {}", strerror(errno));
+        return -1;
+    } else if (pid > 0) {
+        // First child process exits
+        _exit(EXIT_SUCCESS);
     }
 
-    setsid();
+    // Grandchild process continues
 
-    signal(SIGINT,  SIG_IGN);
-    signal(SIGHUP,  SIG_IGN);
-    signal(SIGQUIT, SIG_IGN);
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGTTOU, SIG_IGN);
-    signal(SIGTTIN, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
-    signal(SIGTERM, SIG_IGN);
-
-    struct sigaction sig;
-
-    sig.sa_handler = SIG_IGN;
-    sig.sa_flags = 0;
-    sigemptyset(&sig.sa_mask);
-    sigaction(SIGHUP, &sig, NULL);
-
-    if ((pid = fork()) != 0) {
-        exit(0);
-    }
-
+    // Reset file creation mask
     umask(0);
-    setpgrp();
+
     return 0;
 }
 
