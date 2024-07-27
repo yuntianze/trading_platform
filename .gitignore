@@ -11,6 +11,9 @@ log/
 # Ignore protobuf generated files
 proto/include/*
 
+# Ignore dependencies
+deps/
+
 # Ignore other common files and directories
 *.log
 *.tmp
