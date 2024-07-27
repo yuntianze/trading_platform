@@ -7,6 +7,9 @@
 #include <memory>
 #include "tcp_comm.h"
 
+// Connection IP and Port
+const char CONNECT_IP[] = "140.238.154.0";
+
 class TcpClient {
 public:
     TcpClient(uv_loop_t* loop, const char* ip, int port);
