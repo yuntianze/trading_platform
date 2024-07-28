@@ -6,7 +6,9 @@ const char* LOGFILE = "./log/tcpsvr.log";
 
 using std::string;
 
-TcpServer::TcpServer() : loop_(nullptr), conn_mgr_(nullptr) {}
+TcpServer::TcpServer() 
+    : loop_(nullptr), conn_mgr_(nullptr), run_flag_(RUN_INIT) {
+}
 
 TcpServer::~TcpServer() {
     // Clean up resources
@@ -17,23 +19,12 @@ TcpServer::~TcpServer() {
     if (conn_mgr_) {
         delete conn_mgr_;
     }
+    Logger::log(INFO, "TcpServer destroyed");
 }
 
 TcpServer& TcpServer::instance() {
     static TcpServer s_inst;
     return s_inst;
-}
-
-void TcpServer::sigusr1_handle(int sigval) {
-    (void)sigval;
-    // Set reload configuration flag
-    TcpServer::instance().conn_mgr_->set_run_flag(RELOAD_CFG);
-}
-
-void TcpServer::sigusr2_handle(int sigval) {
-    (void)sigval;
-    // Set exit flag
-    TcpServer::instance().conn_mgr_->set_run_flag(TCP_EXIT);
 }
 
 int TcpServer::init(ServerStartModel model) {
@@ -79,6 +70,17 @@ int TcpServer::init(ServerStartModel model) {
         return -1;
     }
 
+    // Initialize the async handle for signal processing
+    uv_async_init(loop_, &async_handle_, on_async);
+    async_handle_.data = this;
+
+    // Initialize the timer for periodic checks
+    uv_timer_init(loop_, &check_timer_);
+    check_timer_.data = this;
+
+    // Start the timer to run every 100ms
+    uv_timer_start(&check_timer_, on_timer, 100, 100);
+
     // Initialize connection manager
     conn_mgr_ = TcpConnectMgr::create_instance();
     if (conn_mgr_ == nullptr) {
@@ -99,7 +101,64 @@ int TcpServer::init(ServerStartModel model) {
 
 void TcpServer::run() {
     Logger::log(INFO, "Starting server main loop");
-    uv_run(loop_, UV_RUN_DEFAULT);
+    int result = uv_run(loop_, UV_RUN_DEFAULT);
+    if (result != 0) {
+        Logger::log(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+    }
+    Logger::log(INFO, "Server main loop ended");
+}
+
+void TcpServer::reload_config() {
+    run_flag_ = RELOAD_CFG;
+    uv_async_send(&async_handle_);
+}
+
+void TcpServer::stop() {
+    run_flag_ = TCP_EXIT;
+    uv_async_send(&async_handle_);
+}
+
+void TcpServer::on_async(uv_async_t* handle) {
+    TcpServer* server = static_cast<TcpServer*>(handle->data);
+    server->process_run_flag();
+}
+
+void TcpServer::on_timer(uv_timer_t* handle) {
+    TcpServer* server = static_cast<TcpServer*>(handle->data);
+    server->perform_periodic_checks();
+}
+
+void TcpServer::process_run_flag() {
+    switch (run_flag_) {
+        case RELOAD_CFG:
+            Logger::log(INFO, "Reloading configuration...");
+            // Add code to reload configuration here
+            run_flag_ = RUN_INIT;
+            break;
+        case TCP_EXIT:
+            Logger::log(INFO, "Exiting server...");
+            uv_timer_stop(&check_timer_);
+            uv_stop(loop_);
+            break;
+        default:
+            break;
+    }
+}
+
+void TcpServer::perform_periodic_checks() {
+    // Perform periodic checks on TcpConnectMgr
+    conn_mgr_->check_wait_send_data();
+    conn_mgr_->check_timeout();
+}
+
+void TcpServer::sigusr1_handle(int sigval) {
+    (void)sigval;
+    TcpServer::instance().reload_config();
+}
+
+void TcpServer::sigusr2_handle(int sigval) {
+    (void)sigval;
+    TcpServer::instance().stop();
 }
 
 int TcpServer::init_daemon(ServerStartModel model) {
@@ -205,23 +264,31 @@ int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
 
-    // Initialize logger
-    Logger::init(LOGFILE);
+    try {
+        // Initialize logger
+        Logger::init(LOGFILE);
 
-    // Initialize and start server
-    ServerStartModel model = SERVER_START_NODAEMON;
-    TcpServer& server = TcpServer::instance();
-    
-    if (server.init(model) != 0) {
-        Logger::log(ERROR, "Failed to initialize TCP server");
+        // Initialize and start server
+        ServerStartModel model = SERVER_START_NODAEMON;
+        TcpServer& server = TcpServer::instance();
+        
+        if (server.init(model) != 0) {
+            Logger::log(ERROR, "Failed to initialize TCP server");
+            return -1;
+        }
+
+        Logger::log(INFO, "TCP server started successfully");
+        printf("TCP server started successfully\n");
+
+        // Run the server
+        server.run();
+
+        return 0;
+    } catch (const std::exception& e) {
+        Logger::log(ERROR, "Unhandled exception: {}", e.what());
+        return -1;
+    } catch (...) {
+        Logger::log(ERROR, "Unknown exception occurred");
         return -1;
     }
-
-    Logger::log(INFO, "TCP server started successfully");
-    printf("TCP server started successfully\n");
-
-    // Run the server
-    server.run();
-
-    return 0;
 }

@@ -29,14 +29,20 @@ public:
     // Overload delete operator to free memory in shared memory
     static void operator delete(void* mem);
 
-    // Set the run flag for the server
-    void set_run_flag(int flag) { run_flag_ = flag; }
-
     // Initialize the TCP connection manager
     int init();
 
     // Handle a new connection
     void handle_new_connection(uv_tcp_t* client);
+
+    // Process received client data
+    int process_client_data(uv_stream_t* client, const char* data, ssize_t nread);
+
+    // Check for data waiting to be sent
+    void check_wait_send_data();
+
+    // Check for timed-out connections
+    void check_timeout();
 
     // Static callback for reading data from a client
     static void on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf);
@@ -51,17 +57,7 @@ public:
     static int tcp_send_data(uv_stream_t* client, const char* databuf, int len);
 
 private:
-    // Process received client data
-    int process_client_data(uv_stream_t* client, const char* data, ssize_t nread);
-
-    // Check for data waiting to be sent
-    void check_wait_send_data();
-
-    // Check for timed-out connections
-    void check_timeout();
-
     static char* current_shmptr_;  // Pointer to the shared memory
-    int run_flag_;  // Running flag
     SocketConnInfo client_sockconn_list_[MAX_SOCKET_NUM];  // List of client socket connections
     char send_client_buf_[SOCK_SEND_BUFFER];  // Buffer for sending messages to clients
 

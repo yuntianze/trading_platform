@@ -7,7 +7,6 @@
 char* TcpConnectMgr::current_shmptr_ = nullptr;
 
 TcpConnectMgr::TcpConnectMgr() :
-    run_flag_(RUN_INIT),
     cur_conn_num_(0),
     send_pkg_count_(0),
     recv_pkg_count_(0),
@@ -149,18 +148,23 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
     } else if (nread < 0) {
         if (nread != UV_EOF) {
             Logger::log(ERROR, "Read error for client {}: {}", index, uv_strerror(nread));
+        } else {
+            Logger::log(INFO, "Client {} disconnected", index);
         }
+
         // Close the client connection
         uv_close((uv_handle_t*)client, [](uv_handle_t* handle) {
             TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(handle->loop->data);
             int index = (int)(intptr_t)handle->data;
             mgr->client_sockconn_list_[index].handle = nullptr;
             free(handle);
+            mgr->cur_conn_num_--;
+            Logger::log(INFO, "Connection closed. Total connections: {}", mgr->cur_conn_num_);
         });
     }
 
     // If we allocated a small buffer due to full receive buffer, free it
-    if (buf->base != conn.recv_buf + conn.recv_bytes - nread) {
+    if (buf->base != mgr->client_sockconn_list_[index].recv_buf) {
         free(buf->base);
     }
 }
@@ -252,14 +256,19 @@ void TcpConnectMgr::check_timeout() {
                                             client_sockconn_list_[i].recv_data_time);
             if (current_time - last_activity > CLIENT_TIMEOUT) {
                 Logger::log(INFO, "Client {} timed out", i);
-                uv_close((uv_handle_t*)client_sockconn_list_[i].handle, [](uv_handle_t* handle) {
-                    free(handle);
-                });
+                uv_handle_t* handle = (uv_handle_t*)client_sockconn_list_[i].handle;
+                if (!uv_is_closing(handle)) {
+                    uv_close(handle, [](uv_handle_t* handle) {
+                        free(handle);
+                    });
+                }
                 client_sockconn_list_[i].handle = nullptr;
                 --cur_conn_num_;
+                Logger::log(INFO, "Connection closed due to timeout. Total connections: {}", cur_conn_num_);
             }
         }
     }
+    
     // Implement your logic to check for timed-out connections
     // You might want to iterate through client_sockconn_list_ and check last activity time
 }

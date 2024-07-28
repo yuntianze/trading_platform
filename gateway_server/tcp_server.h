@@ -10,6 +10,7 @@
 #define _GATEWAY_SERVER_TCP_SERVER_H_
 
 #include <uv.h>
+#include <atomic>
 #include "tcp_connect_mgr.h"
 
 // Server start modes
@@ -17,6 +18,13 @@ enum ServerStartModel {
     SERVER_START_NODAEMON = 0,
     SERVER_START_DAEMON = 1,
     SERVER_START_INVALID
+};
+
+// Communication server running type
+enum SvrRunFlag {
+    RUN_INIT = 0,
+    RELOAD_CFG = 1,
+    TCP_EXIT = 2,
 };
 
 class TcpServer {
@@ -32,6 +40,12 @@ public:
     // Run the server main loop
     void run();
 
+    // Reload the server configuration
+    void reload_config();
+
+    // Stop the server
+    void stop();
+
     // Get the uv loop
     uv_loop_t* get_loop() { return loop_; }
 
@@ -43,6 +57,12 @@ private:
     // Initialize the server as a daemon
     int init_daemon(ServerStartModel model);
 
+    // Process the server running flag
+    void process_run_flag();
+
+    // Perform periodic checks
+    void perform_periodic_checks();
+
     // Callback for new connections
     static void on_new_connection(uv_stream_t* server, int status);
 
@@ -50,9 +70,18 @@ private:
     static void sigusr1_handle(int sigval);
     static void sigusr2_handle(int sigval);
 
-    uv_loop_t* loop_;        // Main event loop
-    uv_tcp_t server_;        // TCP server handle
+    // Async and timer handlers
+    static void on_async(uv_async_t* handle);
+    static void on_timer(uv_timer_t* handle);
+
+
+    uv_async_t async_handle_;  // Async handle for signal handling
+    uv_timer_t check_timer_;   // Timer for checking connections
+
+    uv_loop_t* loop_;   // Main event loop
+    uv_tcp_t server_;   // TCP server handle
     TcpConnectMgr* conn_mgr_; // Connection manager
+    std::atomic<SvrRunFlag> run_flag_;  // Server running flag
 };
 
 #endif  // _GATEWAY_SERVER_TCP_SERVER_H_

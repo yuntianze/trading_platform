@@ -87,12 +87,6 @@ enum ShmMode {
     MODE_MAX
 };
 
-// Communication server running type
-enum SvrRunFlag {
-    RUN_INIT = 0,
-    RELOAD_CFG = 1,
-    TCP_EXIT = 2,
-};
 
 // Network connection error code definitions
 enum SocketErrors {
