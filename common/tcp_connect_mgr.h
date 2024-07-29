@@ -6,10 +6,12 @@
  * @copyright
 ***/
 
-#ifndef TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_
-#define TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_
+#ifndef _TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_
+#define _TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_
 
 #include <uv.h>
+#include <unordered_map>
+#include <vector>
 #include "tcp_comm.h"
 
 class TcpConnectMgr {
@@ -44,6 +46,15 @@ public:
     // Check for timed-out connections
     void check_timeout();
 
+    // Get the index for a given client handle
+    int get_index_for_client(uv_tcp_t* client);
+
+    // Remove a client connection
+    void remove_connection(uv_tcp_t* client);
+
+    // Get the current number of connections
+    size_t get_connection_count() const;
+
     // Static callback for reading data from a client
     static void on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf);
 
@@ -58,16 +69,42 @@ public:
 
 private:
     static char* current_shmptr_;  // Pointer to the shared memory
-    SocketConnInfo client_sockconn_list_[MAX_SOCKET_NUM];  // List of client socket connections
-    char send_client_buf_[SOCK_SEND_BUFFER];  // Buffer for sending messages to clients
 
+    char send_client_buf_[SOCK_SEND_BUFFER];  // Buffer for sending messages to clients
     int cur_conn_num_;   // Current number of connections
     int send_pkg_count_;  // Count of sent packages
     int recv_pkg_count_;  // Count of received packages
     time_t laststat_time_;   // Last statistics time
+
+    // Map to store client handle to index mapping
+    std::unordered_map<uv_tcp_t*, int> client_to_index_;
+    // Vector to store client connection information
+    std::vector<SocketConnInfo> client_sockconn_list_;
+    // Next available index for new connections
+    int next_index_;
+
+    // Add a new client connection
+    int add_new_connection(uv_tcp_t* client);
 };
 
-#endif // TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_
+// Implementation of inline methods
 
+inline int TcpConnectMgr::get_index_for_client(uv_tcp_t* client) {
+    auto it = client_to_index_.find(client);
+    return (it != client_to_index_.end()) ? it->second : -1;
+}
 
+inline void TcpConnectMgr::remove_connection(uv_tcp_t* client) {
+    auto it = client_to_index_.find(client);
+    if (it != client_to_index_.end()) {
+        client_sockconn_list_[it->second] = SocketConnInfo();  // Reset the slot
+        client_to_index_.erase(it);
+        --cur_conn_num_;
+    }
+}
 
+inline size_t TcpConnectMgr::get_connection_count() const {
+    return cur_conn_num_;
+}
+
+#endif // _TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_

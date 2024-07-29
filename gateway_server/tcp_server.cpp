@@ -54,7 +54,19 @@ int TcpServer::init(ServerStartModel model) {
         return -1;
     }
 
-    loop_->data = conn_mgr_;  // Store connection manager in loop data for easy access in callbacks
+    // Initialize connection manager
+    conn_mgr_ = TcpConnectMgr::create_instance();
+    if (conn_mgr_ == nullptr) {
+        Logger::log(ERROR, "Failed to create TcpConnectMgr instance");
+        return -1;
+    }
+    if (conn_mgr_->init() != 0) {
+        Logger::log(ERROR, "Failed to initialize TcpConnectMgr");
+        return -1;
+    }
+
+    // Store connection manager in loop data for easy access in callbacks
+    loop_->data = conn_mgr_;
 
     // Bind server to address
     struct sockaddr_in addr;
@@ -81,29 +93,21 @@ int TcpServer::init(ServerStartModel model) {
     // Start the timer to run every 100ms
     uv_timer_start(&check_timer_, on_timer, 100, 100);
 
-    // Initialize connection manager
-    conn_mgr_ = TcpConnectMgr::create_instance();
-    if (conn_mgr_ == nullptr) {
-        Logger::log(ERROR, "Failed to create TcpConnectMgr instance");
-        return -1;
-    }
-    if (conn_mgr_->init() != 0) {
-        Logger::log(ERROR, "Failed to initialize TcpConnectMgr");
-        return -1;
-    }
-
-    // Store connection manager in loop data for easy access in callbacks
-    loop_->data = conn_mgr_;
-
     Logger::log(INFO, "Server initialized successfully");
     return 0;
 }
 
 void TcpServer::run() {
     Logger::log(INFO, "Starting server main loop");
-    int result = uv_run(loop_, UV_RUN_DEFAULT);
-    if (result != 0) {
-        Logger::log(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+    try {
+        int result = uv_run(loop_, UV_RUN_DEFAULT);
+        if (result != 0) {
+            Logger::log(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+        }
+    } catch (const std::exception& e) {
+        Logger::log(ERROR, "Unhandled exception in server main loop: {}", e.what());
+    } catch (...) {
+        Logger::log(ERROR, "Unknown exception in server main loop");
     }
     Logger::log(INFO, "Server main loop ended");
 }
@@ -149,6 +153,35 @@ void TcpServer::perform_periodic_checks() {
     // Perform periodic checks on TcpConnectMgr
     conn_mgr_->check_wait_send_data();
     conn_mgr_->check_timeout();
+}
+
+void TcpServer::on_new_connection(uv_stream_t* server, int status) {
+    if (status < 0) {
+        Logger::log(ERROR, "New connection error: {}", uv_strerror(status));
+        return;
+    }
+
+    TcpConnectMgr* conn_mgr = static_cast<TcpConnectMgr*>(server->loop->data);
+
+    uv_tcp_t* client = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
+    if (uv_tcp_init(server->loop, client) != 0) {
+        Logger::log(ERROR, "Failed to initialize client connection");
+        free(client);
+        return;
+    }
+
+    if (uv_accept(server, (uv_stream_t*)client) == 0) {
+        conn_mgr->handle_new_connection(client);
+    } else {
+        uv_close((uv_handle_t*)client, on_close);
+    }
+}
+
+void TcpServer::on_close(uv_handle_t* handle) {
+    TcpConnectMgr* conn_mgr = static_cast<TcpConnectMgr*>(handle->loop->data);
+    conn_mgr->remove_connection((uv_tcp_t*)handle);
+    free(handle);
+    Logger::log(INFO, "Connection closed. Total connections: {}", conn_mgr->get_connection_count());
 }
 
 void TcpServer::sigusr1_handle(int sigval) {
@@ -234,30 +267,6 @@ int TcpServer::init_daemon(ServerStartModel model) {
     umask(0);
 
     return 0;
-}
-
-void TcpServer::on_new_connection(uv_stream_t* server, int status) {
-    if (status < 0) {
-        Logger::log(ERROR, "New connection error: {}", uv_strerror(status));
-        return;
-    }
-
-    TcpConnectMgr* conn_mgr = static_cast<TcpConnectMgr*>(server->loop->data);
-
-    uv_tcp_t* client = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
-    if (uv_tcp_init(server->loop, client) != 0) {
-        Logger::log(ERROR, "Failed to initialize client connection");
-        free(client);
-        return;
-    }
-
-    if (uv_accept(server, (uv_stream_t*)client) == 0) {
-        conn_mgr->handle_new_connection(client);
-    } else {
-        uv_close((uv_handle_t*)client, [](uv_handle_t* handle) {
-            free(handle);
-        });
-    }
 }
 
 int main(int argc, char **argv) {
