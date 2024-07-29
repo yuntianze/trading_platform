@@ -50,8 +50,8 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
     // Get peer address
     struct sockaddr_storage peer_addr;
     int addr_len = sizeof(peer_addr);
+    char addr[32] = {'\0'};
     if (uv_tcp_getpeername(client, (struct sockaddr*)&peer_addr, &addr_len) == 0) {
-        char addr[17] = {'\0'};
         uv_ip4_name((struct sockaddr_in*)&peer_addr, addr, sizeof(addr));
         client_sockconn_list_[index].client_ip = inet_addr(addr);
     }
@@ -62,7 +62,8 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
     // Start reading from the client
     uv_read_start((uv_stream_t*)client, alloc_buffer, on_read);
 
-    Logger::log(INFO, "New connection accepted. Total connections: {}", cur_conn_num_);
+    Logger::log(INFO, "Hanle new connection, index:{}, client ip:{}, total connections: {}",
+            index, addr, cur_conn_num_);
 }
 
 void TcpConnectMgr::alloc_buffer(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {

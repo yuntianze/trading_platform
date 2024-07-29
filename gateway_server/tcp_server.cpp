@@ -161,6 +161,8 @@ void TcpServer::on_new_connection(uv_stream_t* server, int status) {
         return;
     }
 
+    Logger::log(INFO, "New connection received");
+
     TcpConnectMgr* conn_mgr = static_cast<TcpConnectMgr*>(server->loop->data);
 
     uv_tcp_t* client = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
