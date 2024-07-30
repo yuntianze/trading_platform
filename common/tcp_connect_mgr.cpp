@@ -129,6 +129,8 @@ int TcpConnectMgr::init() {
 }
 
 void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
+    (void)buf;  // Unused
+
     TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(client->loop->data);
     int index = (int)(intptr_t)client->data;
     SocketConnInfo& conn = mgr->client_sockconn_list_[index];
@@ -155,11 +157,6 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
             mgr->cur_conn_num_--;
             Logger::log(INFO, "Connection closed. Total connections: {}", mgr->cur_conn_num_);
         });
-    }
-
-    // If we allocated a small buffer due to full receive buffer, free it
-    if (buf->base != mgr->client_sockconn_list_[index].recv_buf) {
-        free(buf->base);
     }
 }
 
@@ -264,6 +261,7 @@ void TcpConnectMgr::check_timeout() {
                 uv_handle_t* handle = (uv_handle_t*)client_sockconn_list_[i].handle;
                 if (!uv_is_closing(handle)) {
                     uv_close(handle, [](uv_handle_t* handle) {
+                        Logger::log(INFO, "Closed handle for client {}", (int)(intptr_t)handle->data);
                         free(handle);
                     });
                 }
