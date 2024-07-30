@@ -135,6 +135,8 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
     int index = (int)(intptr_t)client->data;
     SocketConnInfo& conn = mgr->client_sockconn_list_[index];
 
+    Logger::log(DEBUG, "Read {} bytes from client {}", nread, index);
+
     if (nread > 0) {
         // Data is already in the receive buffer, just update the count
         conn.recv_bytes += nread;
@@ -167,6 +169,8 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, const char* data, ss
         Logger::log(ERROR, "Invalid client index: {}", index);
         return -1;
     }
+
+    Logger::log(DEBUG, "Processing {} bytes from client {}", nread, index);
 
     SocketConnInfo& cur_conn = client_sockconn_list_[index];
 

@@ -41,7 +41,7 @@ typedef std::uint64_t ULONG;
 #define RECV_BUF_LEN      16384     // Buffer size for receiving client information
 
 // System constant parameter definitions
-const USHORT CONNECT_PORT = 8000;  // Connection port
+const USHORT CONNECT_PORT = 9218;  // Connection port
 
 // Number of test connections for tcpclient
 const int MAX_CLIENT_CONN = 100;
