@@ -14,6 +14,7 @@
 #include <vector>
 #include "tcp_comm.h"
 
+
 class TcpConnectMgr {
 public:
     TcpConnectMgr();
@@ -38,7 +39,7 @@ public:
     void handle_new_connection(uv_tcp_t* client);
 
     // Process received client data
-    int process_client_data(uv_stream_t* client, const char* data, ssize_t nread);
+    int process_client_data(uv_stream_t* client, ssize_t nread);
 
     // Check for data waiting to be sent
     void check_wait_send_data();

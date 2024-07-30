@@ -33,6 +33,7 @@ int TcpConnectMgr::add_new_connection(uv_tcp_t* client) {
 }
 
 void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
+    // Add a new connection and get its index
     int index = add_new_connection(client);
     if (index == -1) {
         Logger::log(ERROR, "Maximum number of connections reached or no available slot");
@@ -40,10 +41,11 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
         return;
     }
 
-    // Store client information
+    // Initialize client information
     client_sockconn_list_[index].handle = client;
     time(&client_sockconn_list_[index].create_Time);
     client_sockconn_list_[index].recv_bytes = 0;
+    client_sockconn_list_[index].buf_start = 0;  // Initialize buffer start position
     client_sockconn_list_[index].recv_data_time = 0;
     client_sockconn_list_[index].uin = 0;
 
@@ -62,7 +64,7 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
     // Start reading from the client
     uv_read_start((uv_stream_t*)client, alloc_buffer, on_read);
 
-    Logger::log(INFO, "Hanle new connection, index:{}, client ip:{}, total connections: {}",
+    Logger::log(INFO, "Handle new connection, index:{}, client ip:{}, total connections: {}",
             index, addr, cur_conn_num_);
 }
 
@@ -74,23 +76,28 @@ void TcpConnectMgr::alloc_buffer(uv_handle_t* handle, size_t suggested_size, uv_
     int index = (int)(intptr_t)handle->data;
     SocketConnInfo& conn = mgr->client_sockconn_list_[index];
 
-    // Calculate remaining space in the receive buffer
-    size_t available_space = RECV_BUF_LEN - conn.recv_bytes;
+    // Calculate the end position of data in the circular buffer
+    int buf_end = (conn.buf_start + conn.recv_bytes) % RECV_BUF_LEN;
+
+    // Calculate available space
+    size_t available_space;
+    if (buf_end >= conn.buf_start) {
+        available_space = RECV_BUF_LEN - buf_end;
+    } else {
+        available_space = conn.buf_start - buf_end;
+    }
 
     // Allocate buffer based on available space and suggested size
     size_t alloc_size = std::min(available_space, suggested_size);
 
     if (alloc_size > 0) {
-        // Use the remaining space in the receive buffer
-        buf->base = conn.recv_buf + conn.recv_bytes;
+        buf->base = conn.recv_buf + buf_end;
         buf->len = alloc_size;
     } else {
-        // No space left, allocate a small buffer to avoid NULL
         buf->base = (char*)malloc(1);
         buf->len = 0;
     }
 
-    // Log the allocation
     Logger::log(DEBUG, "Buffer allocated for client {}: size {}", index, buf->len);
 }
 
@@ -129,8 +136,6 @@ int TcpConnectMgr::init() {
 }
 
 void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-    (void)buf;  // Unused
-
     TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(client->loop->data);
     int index = (int)(intptr_t)client->data;
     SocketConnInfo& conn = mgr->client_sockconn_list_[index];
@@ -138,11 +143,11 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
     Logger::log(DEBUG, "Read {} bytes from client {}", nread, index);
 
     if (nread > 0) {
-        // Data is already in the receive buffer, just update the count
+        // Update the received bytes count
         conn.recv_bytes += nread;
         
         // Process the received data
-        mgr->process_client_data(client, conn.recv_buf + conn.recv_bytes - nread, nread);
+        mgr->process_client_data(client, nread);
     } else if (nread < 0) {
         if (nread != UV_EOF) {
             Logger::log(ERROR, "Read error for client {}: {}", index, uv_strerror(nread));
@@ -160,9 +165,14 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
             Logger::log(INFO, "Connection closed. Total connections: {}", mgr->cur_conn_num_);
         });
     }
+
+    // Free the buffer if it was dynamically allocated
+    if (buf->base && buf->len == 0) {
+        free(buf->base);
+    }
 }
 
-int TcpConnectMgr::process_client_data(uv_stream_t* client, const char* data, ssize_t nread) {
+int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     // Get the index for this client
     int index = get_index_for_client((uv_tcp_t*)client);
     if (index < 0 || index >= MAX_SOCKET_NUM) {
@@ -177,21 +187,14 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, const char* data, ss
     // Update receive time
     time(&cur_conn.recv_data_time);
 
-    // Check if there's enough space in the receive buffer
-    if (cur_conn.recv_bytes + nread > RECV_BUF_LEN) {
-        Logger::log(ERROR, "Receive buffer overflow for client {}", index);
-        return -1;
-    }
-
-    // Append new data to the receive buffer
-    memcpy(cur_conn.recv_buf + cur_conn.recv_bytes, data, nread);
-    cur_conn.recv_bytes += nread;
-
     // Process complete packets
     int total_processed = 0;
-    while (cur_conn.recv_bytes - total_processed >= PKGHEAD_FIELD_SIZE) {
+    while (cur_conn.recv_bytes >= PKGHEAD_FIELD_SIZE) {
+        // Calculate the position of the packet header
+        int header_pos = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
+
         // Extract packet size from the header
-        int packet_size = TcpCode::convert_int32(cur_conn.recv_buf + total_processed);
+        int packet_size = TcpCode::convert_int32(cur_conn.recv_buf + header_pos);
 
         // Validate packet size
         if (packet_size <= 0 || packet_size > MAX_CSPKG_LEN) {
@@ -200,12 +203,13 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, const char* data, ss
         }
 
         // Check if we have a complete packet
-        if (cur_conn.recv_bytes - total_processed >= packet_size) {
+        if (cur_conn.recv_bytes >= packet_size) {
             // Process the complete packet
             // TODO: Implement packet processing logic here
             // For example, decode the protobuf message and handle it
 
             total_processed += packet_size;
+            cur_conn.recv_bytes -= packet_size;
             ++recv_pkg_count_;
         } else {
             // Incomplete packet, wait for more data
@@ -213,11 +217,8 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, const char* data, ss
         }
     }
 
-    // Remove processed data from the buffer
-    if (total_processed > 0) {
-        memmove(cur_conn.recv_buf, cur_conn.recv_buf + total_processed, cur_conn.recv_bytes - total_processed);
-        cur_conn.recv_bytes -= total_processed;
-    }
+    // Update the buffer start position
+    cur_conn.buf_start = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
 
     Logger::log(INFO, "Processed {} bytes from client {}", total_processed, index);
     return 0;
@@ -238,7 +239,7 @@ void TcpConnectMgr::on_write(uv_write_t* req, int status) {
 }
 
 void TcpConnectMgr::check_wait_send_data() {
-    // Implement your logic to check for data waiting to be sent
+    // TODO: Implement logic to check for data waiting to be sent
     // This might involve checking a queue or buffer of outgoing messages
 }
 
@@ -275,7 +276,4 @@ void TcpConnectMgr::check_timeout() {
             }
         }
     }
-    
-    // Implement your logic to check for timed-out connections
-    // You might want to iterate through client_sockconn_list_ and check last activity time
 }

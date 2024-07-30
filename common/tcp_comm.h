@@ -104,6 +104,7 @@ struct SocketConnInfo {
     ULONG uin;         // User account
     int recv_bytes;    // Number of bytes received
     char recv_buf[RECV_BUF_LEN];  // Buffer for received client request package
+    int buf_start;     // Start position of data in the circular buffer
     ULONG client_ip;   // Client IP address
     time_t create_Time;  // Socket creation time
     time_t recv_data_time;  // Timestamp of received data package
