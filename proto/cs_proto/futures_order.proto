@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package cs_proto;
+
+// Enum for order side
+enum OrderSide {
+  BUY = 0;
+  SELL = 1;
+}
+
+// Enum for order type
+enum OrderType {
+  MARKET = 0;
+  LIMIT = 1;
+  STOP = 2;
+  STOP_LIMIT = 3;
+}
+
+// Enum for order status
+enum OrderStatus {
+  PENDING = 0;
+  ACCEPTED = 1;
+  REJECTED = 2;
+  FILLED = 3;
+  PARTIALLY_FILLED = 4;
+  CANCELED = 5;
+}
+
+// Message for a futures order
+message FuturesOrder {
+  string order_id = 1;
+  string user_id = 2;
+  string symbol = 3;
+  OrderSide side = 4;
+  OrderType type = 5;
+  double quantity = 6;
+  double price = 7;
+  double stop_price = 8;  // Used for STOP and STOP_LIMIT orders
+  OrderStatus status = 9;
+  int64 timestamp = 10;
+}
+
+// Message for order status update
+message OrderStatusUpdate {
+  string order_id = 1;
+  OrderStatus new_status = 2;
+  double filled_quantity = 3;
+  double remaining_quantity = 4;
+  double average_fill_price = 5;
+  int64 timestamp = 6;
+}
+
+// Message for trade execution
+message TradeExecution {
+  string trade_id = 1;
+  string order_id = 2;
+  string user_id = 3;
+  string symbol = 4;
+  OrderSide side = 5;
+  double quantity = 6;
+  double price = 7;
+  int64 timestamp = 8;
+}
