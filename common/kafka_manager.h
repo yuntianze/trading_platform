@@ -29,8 +29,8 @@ public:
     // Initialize Kafka manager with Oracle Cloud Streaming settings
     bool init(const std::string& brokers, const std::string& username, const std::string& password);
 
-    // Produce a protobuf message to a topic
-    bool produce(const std::string& topic, const google::protobuf::Message& message, const std::string& key = "");
+    // Produce a protobuf message to a topic with additional metadata
+    bool produce(const std::string& topic, const google::protobuf::Message& message, int client_id);
 
     // Start consuming messages from topics
     bool start_consuming(const std::vector<std::string>& topics, const std::string& group_id, MessageCallback callback);

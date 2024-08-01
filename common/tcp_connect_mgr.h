@@ -50,6 +50,9 @@ public:
     // Get the index for a given client handle
     int get_index_for_client(uv_tcp_t* client);
 
+    // Get the client handle for a given index
+    uv_tcp_t* get_client_by_index(int index);
+
     // Remove a client connection
     void remove_connection(uv_tcp_t* client);
 
@@ -93,6 +96,13 @@ private:
 inline int TcpConnectMgr::get_index_for_client(uv_tcp_t* client) {
     auto it = client_to_index_.find(client);
     return (it != client_to_index_.end()) ? it->second : -1;
+}
+
+inline uv_tcp_t* TcpConnectMgr::get_client_by_index(int index) {
+    if (index >= 0 && index < MAX_SOCKET_NUM) {
+        return client_sockconn_list_[index].handle;
+    }
+    return nullptr;
 }
 
 inline void TcpConnectMgr::remove_connection(uv_tcp_t* client) {

@@ -1,5 +1,6 @@
 #include "tcp_server.h"
 #include <string>
+#include "tcp_code.h"
 #include "logger.h"
 
 const char* LOGFILE = "./log/tcpsvr.log";
@@ -7,7 +8,8 @@ const char* LOGFILE = "./log/tcpsvr.log";
 using std::string;
 
 TcpServer::TcpServer() 
-    : loop_(nullptr), conn_mgr_(nullptr), run_flag_(RUN_INIT) {
+    : loop_(nullptr), conn_mgr_(nullptr), run_flag_(RUN_INIT),
+      kafka_manager_(KafkaManager::instance()) {
 }
 
 TcpServer::~TcpServer() {
@@ -93,6 +95,24 @@ int TcpServer::init(ServerStartModel model) {
     // Start the timer to run every 100ms
     uv_timer_start(&check_timer_, on_timer, 100, 100);
 
+    // Initialize KafkaManager
+    if (!kafka_manager_.init(
+        "cell-1.streaming.ca-toronto-1.oci.oraclecloud.com:9092",
+        "stanjiang2010/stanjiang2010@gmail.com/ocid1.streampool.oc1.ca-toronto-1.amaaaaaauz54kbqapjf3estamgf42ivwojfaktgruwh6frqw2acpodjuxlaq",
+        "AUTH_TOKEN")) {
+        Logger::log(ERROR, "Failed to initialize Kafka manager");
+        return -1;
+    }
+
+    // Start consuming from the order response topic
+    if (!kafka_manager_.start_consuming({"order_response_topic"}, "gateway_server_consumer_group", 
+        [this](const google::protobuf::Message& message) {
+            this->handle_kafka_message(message);
+        })) {
+        Logger::log(ERROR, "Failed to start consuming Kafka messages");
+        return -1;
+    }
+
     Logger::log(INFO, "Server initialized successfully");
     return 0;
 }
@@ -104,12 +124,36 @@ void TcpServer::run() {
         if (result != 0) {
             Logger::log(ERROR, "uv_run returned with error: {}", uv_strerror(result));
         }
+
+        // Process Kafka messages
+        kafka_manager_.process_messages();
+
+        // Small sleep to prevent CPU hogging
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } catch (const std::exception& e) {
         Logger::log(ERROR, "Unhandled exception in server main loop: {}", e.what());
     } catch (...) {
         Logger::log(ERROR, "Unknown exception in server main loop");
     }
     Logger::log(INFO, "Server main loop ended");
+}
+
+void TcpServer::handle_kafka_message(const google::protobuf::Message& message) {
+    // Handle the message from order_server
+    // This might involve sending the response back to the client
+    const cs_proto::OrderResponse& response = dynamic_cast<const cs_proto::OrderResponse&>(message);
+    
+    // Find the client connection using the client ID in the response
+    // and send the response back to the client
+    int client_index = response.client_id();
+    uv_tcp_t* client = conn_mgr_->get_client_by_index(client_index);
+    if (client) {
+        std::string encoded_response = TcpCode::encode(response);
+        TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
+        Logger::log(INFO, "Sent response to client {}", client_index);
+    } else {
+        Logger::log(ERROR, "Client not found for index: {}", client_index);
+    }
 }
 
 void TcpServer::reload_config() {

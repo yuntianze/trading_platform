@@ -2,6 +2,7 @@
 #include <algorithm>
 #include "shm_mgr.h"
 #include "tcp_code.h"
+#include "kafka_manager.h"
 #include "logger.h"
 
 char* TcpConnectMgr::current_shmptr_ = nullptr;
@@ -172,6 +173,8 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
     }
 }
 
+// tcp_connect_mgr.cpp
+
 int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     // Get the index for this client
     int index = get_index_for_client((uv_tcp_t*)client);
@@ -205,8 +208,20 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
         // Check if we have a complete packet
         if (cur_conn.recv_bytes >= packet_size) {
             // Process the complete packet
-            // TODO: Implement packet processing logic here
-            // For example, decode the protobuf message and handle it
+            std::string message(cur_conn.recv_buf + header_pos, packet_size);
+            
+            // Parse the message and send it to order_server via Kafka
+            std::unique_ptr<google::protobuf::Message> parsed_message(TcpCode::decode(message));
+            if (parsed_message) {
+                // Send the message to Kafka, including the client index
+                if (KafkaManager::instance().produce("new_orders_topic", *parsed_message, index)) {
+                    Logger::log(INFO, "Sent message to Kafka for client {}", index);
+                } else {
+                    Logger::log(ERROR, "Failed to send message to Kafka for client {}", index);
+                }
+            } else {
+                Logger::log(ERROR, "Failed to parse client message for client {}", index);
+            }
 
             total_processed += packet_size;
             cur_conn.recv_bytes -= packet_size;

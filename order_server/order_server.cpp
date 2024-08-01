@@ -9,17 +9,13 @@
 const char* LOGFILE = "./log/order_server.log";
 
 OrderServer::OrderServer() 
-    : loop_(nullptr), 
-      run_flag_(RUN_INIT),
+    : running_(false),
+      reload_config_(false),
       kafka_manager_(KafkaManager::instance()),
       order_processor_() {
 }
 
 OrderServer::~OrderServer() {
-    if (loop_) {
-        uv_loop_close(loop_);
-        free(loop_);
-    }
     Logger::log(INFO, "OrderServer destroyed");
 }
 
@@ -33,14 +29,10 @@ int OrderServer::init(ServerStartModel model) {
         return -1;
     }
 
-    signal(SIGUSR1, OrderServer::sigusr1_handle);
-    signal(SIGUSR2, OrderServer::sigusr2_handle);
-
-    loop_ = (uv_loop_t*)malloc(sizeof(uv_loop_t));
-    if (!loop_ || uv_loop_init(loop_) != 0) {
-        Logger::log(ERROR, "Failed to initialize uv loop");
-        return -1;
-    }
+    // Set up signal handlers
+    signal(SIGINT, OrderServer::signal_handler);
+    signal(SIGTERM, OrderServer::signal_handler);
+    signal(SIGUSR1, OrderServer::signal_handler);
 
     // Initialize KafkaManager with Oracle Cloud Streaming settings
     if (!kafka_manager_.init(
@@ -66,73 +58,78 @@ int OrderServer::init(ServerStartModel model) {
         return -1;
     }
 
-    uv_async_init(loop_, &async_handle_, on_async);
-    async_handle_.data = this;
-
-    uv_timer_init(loop_, &check_timer_);
-    check_timer_.data = this;
-    uv_timer_start(&check_timer_, on_timer, 100, 100);
-
     Logger::log(INFO, "OrderServer initialized successfully");
     return 0;
 }
 
 void OrderServer::run() {
     Logger::log(INFO, "Starting order server main loop");
-    uv_run(loop_, UV_RUN_DEFAULT);
+    running_ = true;
+    while (running_) {
+        // Process run flag
+        process_run_flag();
+
+        // Process incoming Kafka messages
+        kafka_manager_.process_messages();
+        
+        // Process pending orders
+        order_processor_.process_orders();
+        
+        // Small sleep to prevent CPU hogging
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     Logger::log(INFO, "Order server main loop ended");
 }
 
+void OrderServer::process_run_flag() {
+    if (reload_config_) {
+        Logger::log(INFO, "Reloading configuration...");
+        // Implement config reloading logic here
+        // For example:
+        // reload_configuration();
+        reload_config_ = false;
+        Logger::log(INFO, "Configuration reloaded");
+    }
+}
+
 void OrderServer::reload_config() {
-    run_flag_ = RELOAD_CFG;
-    uv_async_send(&async_handle_);
+    Logger::log(INFO, "Reload configuration requested");
+    reload_config_ = true;
 }
 
 void OrderServer::stop() {
-    run_flag_ = SERVER_EXIT;
-    uv_async_send(&async_handle_);
+    Logger::log(INFO, "Stopping order server...");
+    running_ = false;
+    kafka_manager_.stop_consuming();
 }
 
-void OrderServer::on_async(uv_async_t* handle) {
-    OrderServer* server = static_cast<OrderServer*>(handle->data);
-    server->process_run_flag();
-}
-
-void OrderServer::on_timer(uv_timer_t* handle) {
-    OrderServer* server = static_cast<OrderServer*>(handle->data);
-    server->perform_periodic_checks();
-}
-
-void OrderServer::process_run_flag() {
-    switch (run_flag_) {
-        case RELOAD_CFG:
-            Logger::log(INFO, "Reloading configuration...");
-            // Implement config reloading logic here
-            run_flag_ = RUN_INIT;
+void OrderServer::signal_handler(int signum) {
+    OrderServer& server = OrderServer::instance();
+    switch (signum) {
+        case SIGINT:
+        case SIGTERM:
+            server.stop();
             break;
-        case SERVER_EXIT:
-            Logger::log(INFO, "Exiting server...");
-            uv_timer_stop(&check_timer_);
-            kafka_manager_.stop_consuming();
-            uv_stop(loop_);
+        case SIGUSR1:
+            server.reload_config();
             break;
         default:
             break;
     }
 }
 
-void OrderServer::perform_periodic_checks() {
-    order_processor_.process_orders();
-}
-
-void OrderServer::sigusr1_handle(int sigval) {
-    (void)sigval;
-    OrderServer::instance().reload_config();
-}
-
-void OrderServer::sigusr2_handle(int sigval) {
-    (void)sigval;
-    OrderServer::instance().stop();
+void OrderServer::handle_kafka_message(const google::protobuf::Message& message) {
+    const cs_proto::FuturesOrder& order = dynamic_cast<const cs_proto::FuturesOrder&>(message);
+    
+    // Process the order
+    cs_proto::OrderResponse response = order_processor_.process_new_order(order);
+    
+    // Send the response back to gateway_server via Kafka
+    if (kafka_manager_.produce("order_response_topic", response, order.client_id())) {
+        Logger::log(INFO, "Sent response to Kafka for client {}", order.client_id());
+    } else {
+        Logger::log(ERROR, "Failed to send response to Kafka for client {}", order.client_id());
+    }
 }
 
 int OrderServer::init_daemon(ServerStartModel model) {
@@ -231,4 +228,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-

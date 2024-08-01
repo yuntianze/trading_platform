@@ -61,15 +61,22 @@ bool KafkaManager::init(const std::string& brokers, const std::string& username,
 }
 
 // Produce a protobuf message to a topic
-bool KafkaManager::produce(const std::string& topic, const google::protobuf::Message& message, const std::string& key) {
+bool KafkaManager::produce(const std::string& topic, const google::protobuf::Message& message, int client_id) {
     if (!producer_) {
         Logger::log(ERROR, "Producer not initialized");
         return false;
     }
 
+    // Add client ID to the message
+    google::protobuf::Message* mutable_message = message.New();
+    mutable_message->CopyFrom(message);
+    mutable_message->GetReflection()->SetInt32(mutable_message, 
+        mutable_message->GetDescriptor()->FindFieldByName("client_id"), client_id);
+
     std::string serialized_message;
-    if (!message.SerializeToString(&serialized_message)) {
+    if (!mutable_message->SerializeToString(&serialized_message)) {
         Logger::log(ERROR, "Failed to serialize protobuf message");
+        delete mutable_message;
         return false;
     }
 
@@ -79,11 +86,13 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
         RdKafka::Producer::RK_MSG_COPY,
         const_cast<char*>(serialized_message.c_str()),
         serialized_message.size(),
-        key.empty() ? nullptr : key.c_str(),
-        key.empty() ? 0 : key.size(),
-        0,  // timestamp
-        nullptr  // No message headers
+        nullptr,  // No key
+        0,        // No key length
+        0,        // Use current timestamp
+        nullptr   // No message headers
     );
+
+    delete mutable_message;
 
     if (err != RdKafka::ERR_NO_ERROR) {
         Logger::log(ERROR, "Failed to produce message: {}", RdKafka::err2str(err));

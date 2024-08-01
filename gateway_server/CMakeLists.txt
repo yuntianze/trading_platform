@@ -18,6 +18,10 @@ find_package(Protobuf REQUIRED)
 set(LIBUV_INCLUDE_DIR "/usr/local/include")
 set(LIBUV_LIBRARY "/usr/local/lib/libuv.so")
 
+# 设置 librdkafka 的路径
+set(RDKAFKA_INCLUDE_DIR "/usr/include/librdkafka")
+set(RDKAFKA_LIBRARY "/usr/lib/x86_64-linux-gnu/librdkafka++.so")
+
 # 包含头文件目录
 include_directories(
     ${PROJECT_SOURCE_DIR}
@@ -27,6 +31,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../proto/include/ss_proto
     ${Protobuf_INCLUDE_DIRS}
     ${LIBUV_INCLUDE_DIR}
+    ${RDKAFKA_INCLUDE_DIR}
 )
 
 # 查找所有源文件
@@ -48,6 +53,7 @@ target_link_libraries(gateway_server
     spdlog::spdlog
     ${Protobuf_LIBRARIES}
     ${LIBUV_LIBRARY}
+    ${RDKAFKA_LIBRARY}
 )
 
 # 添加编译选项

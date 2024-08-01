@@ -6,34 +6,39 @@
  * @copyright
 ***/
 
+// order_server.h
+
 #ifndef _ORDER_SERVER_ORDER_SERVER_H_
 #define _ORDER_SERVER_ORDER_SERVER_H_
 
-#include <uv.h>
+#include <atomic>
 #include "kafka_manager.h"
 #include "order_processor.h"
 
+// Server start modes
 enum ServerStartModel {
     SERVER_START_NODAEMON = 0,
     SERVER_START_DAEMON = 1,
     SERVER_START_INVALID
 };
 
-enum SvrRunFlag {
-    RUN_INIT = 0,
-    RELOAD_CFG = 1,
-    SERVER_EXIT = 2,
-};
-
 class OrderServer {
 public:
     ~OrderServer();
 
+    // Get the singleton instance of OrderServer
     static OrderServer& instance();
 
+    // Initialize the server
     int init(ServerStartModel model);
+    
+    // Run the server
     void run();
+    
+    // Request configuration reload
     void reload_config();
+    
+    // Stop the server
     void stop();
 
 private:
@@ -41,23 +46,22 @@ private:
     OrderServer(const OrderServer&) = delete;
     OrderServer& operator=(const OrderServer&) = delete;
 
+    // Initialize as daemon if required
     int init_daemon(ServerStartModel model);
+    
+    // Process server run flags
     void process_run_flag();
-    void perform_periodic_checks();
+    
+    // Handle incoming Kafka messages
+    void handle_kafka_message(const google::protobuf::Message& message);
 
-    static void on_async(uv_async_t* handle);
-    static void on_timer(uv_timer_t* handle);
+    // Signal handler
+    static void signal_handler(int signum);
 
-    static void sigusr1_handle(int sigval);
-    static void sigusr2_handle(int sigval);
-
-    uv_loop_t* loop_;
-    uv_async_t async_handle_;
-    uv_timer_t check_timer_;
-
-    SvrRunFlag run_flag_;  
-    KafkaManager& kafka_manager_;
-    OrderProcessor order_processor_;
+    std::atomic<bool> running_;       // Flag to control the main loop
+    std::atomic<bool> reload_config_; // Flag for configuration reload
+    KafkaManager& kafka_manager_;     // Kafka manager instance
+    OrderProcessor order_processor_;  // Order processor instance
 };
 
 #endif // _ORDER_SERVER_ORDER_SERVER_H_

@@ -12,6 +12,7 @@
 #include <uv.h>
 #include <atomic>
 #include "tcp_connect_mgr.h"
+#include "kafka_manager.h"
 
 // Server start modes
 enum ServerStartModel {
@@ -77,6 +78,9 @@ private:
     static void on_async(uv_async_t* handle);
     static void on_timer(uv_timer_t* handle);
 
+    // Kafka message handling
+    void handle_kafka_message(const google::protobuf::Message& message);
+
     uv_async_t async_handle_;  // Async handle for signal handling
     uv_timer_t check_timer_;   // Timer for checking connections
 
@@ -84,6 +88,7 @@ private:
     uv_tcp_t server_;   // TCP server handle
     TcpConnectMgr* conn_mgr_; // Connection manager
     std::atomic<SvrRunFlag> run_flag_;  // Server running flag
+    KafkaManager& kafka_manager_;  // Kafka message manager
 };
 
 #endif  // _GATEWAY_SERVER_TCP_SERVER_H_
