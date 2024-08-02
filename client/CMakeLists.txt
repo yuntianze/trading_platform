@@ -20,7 +20,7 @@ set(LIBUV_LIBRARY "/usr/local/lib/libuv.so")
 
 # 设置 librdkafka 的路径
 set(RDKAFKA_INCLUDE_DIR "/usr/include/librdkafka")
-set(RDKAFKA_LIBRARY "/usr/lib/x86_64-linux-gnu/librdkafka++.so")
+set(RDKAFKA_LIBRARY "/usr/lib/aarch64-linux-gnu/librdkafka++.so")
 
 # 包含头文件目录
 include_directories(
