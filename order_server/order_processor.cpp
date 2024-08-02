@@ -9,7 +9,7 @@ OrderProcessor::~OrderProcessor() {
 
 int OrderProcessor::init() {
     // Perform any necessary initialization
-    Logger::log(INFO, "OrderProcessor initialized");
+    LOG(INFO, "OrderProcessor initialized");
     return 0;
 }
 
@@ -38,7 +38,7 @@ cs_proto::OrderResponse OrderProcessor::process_new_order(const cs_proto::Future
     response.set_client_id(order.client_id());
 
     // Process the order (e.g., validate, apply business rules)
-    Logger::log(INFO, "Processing order: ID {}, Type {}, Quantity {}, Price {}",
+    LOG(INFO, "Processing order: ID {}, Type {}, Quantity {}, Price {}",
                 order.order_id(), order.type(), order.quantity(), order.price());
 
     // TODO: Implement order processing logic
@@ -58,7 +58,7 @@ cs_proto::OrderResponse OrderProcessor::process_new_order(const cs_proto::Future
 
 void OrderProcessor::send_order_to_matching(const cs_proto::FuturesOrder& order) {
     kafka_manager_.produce("matching_orders_topic", order, order.client_id());
-    Logger::log(INFO, "Order sent to matching engine: Order ID {}, Client ID {}", order.order_id(), order.client_id());
+    LOG(INFO, "Order sent to matching engine: Order ID {}, Client ID {}", order.order_id(), order.client_id());
 }
 
 void OrderProcessor::match_orders() {
@@ -69,5 +69,5 @@ void OrderProcessor::match_orders() {
     // - Updating order statuses
     // - Sending trade confirmations
 
-    Logger::log(INFO, "Order matching completed");
+    LOG(INFO, "Order matching completed");
 }

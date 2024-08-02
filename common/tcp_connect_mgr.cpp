@@ -17,7 +17,7 @@ TcpConnectMgr::TcpConnectMgr() :
 }
 
 TcpConnectMgr::~TcpConnectMgr() {
-    Logger::log(INFO, "TcpConnectMgr destroyed");
+    LOG(INFO, "TcpConnectMgr destroyed");
 }
 
 int TcpConnectMgr::add_new_connection(uv_tcp_t* client) {
@@ -37,7 +37,7 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
     // Add a new connection and get its index
     int index = add_new_connection(client);
     if (index == -1) {
-        Logger::log(ERROR, "Maximum number of connections reached or no available slot");
+        LOG(ERROR, "Maximum number of connections reached or no available slot");
         uv_close((uv_handle_t*)client, [](uv_handle_t* handle) { free(handle); });
         return;
     }
@@ -65,7 +65,7 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
     // Start reading from the client
     uv_read_start((uv_stream_t*)client, alloc_buffer, on_read);
 
-    Logger::log(INFO, "Handle new connection, index:{}, client ip:{}, total connections: {}",
+    LOG(INFO, "Handle new connection, index:{}, client ip:{}, total connections: {}",
             index, addr, cur_conn_num_);
 }
 
@@ -99,7 +99,7 @@ void TcpConnectMgr::alloc_buffer(uv_handle_t* handle, size_t suggested_size, uv_
         buf->len = 0;
     }
 
-    Logger::log(DEBUG, "Buffer allocated for client {}: size {}", index, buf->len);
+    LOG(DEBUG, "Buffer allocated for client {}: size {}", index, buf->len);
 }
 
 TcpConnectMgr* TcpConnectMgr::create_instance() {
@@ -132,7 +132,7 @@ int TcpConnectMgr::init() {
     laststat_time_ = 0;
     cur_conn_num_ = 0;
 
-    Logger::log(INFO, "TcpConnectMgr initialized successfully");
+    LOG(INFO, "TcpConnectMgr initialized successfully");
     return 0;
 }
 
@@ -141,7 +141,7 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
     int index = (int)(intptr_t)client->data;
     SocketConnInfo& conn = mgr->client_sockconn_list_[index];
 
-    Logger::log(DEBUG, "Read {} bytes from client {}", nread, index);
+    LOG(DEBUG, "Read {} bytes from client {}", nread, index);
 
     if (nread > 0) {
         // Update the received bytes count
@@ -151,9 +151,9 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
         mgr->process_client_data(client, nread);
     } else if (nread < 0) {
         if (nread != UV_EOF) {
-            Logger::log(ERROR, "Read error for client {}: {}", index, uv_strerror(nread));
+            LOG(ERROR, "Read error for client {}: {}", index, uv_strerror(nread));
         } else {
-            Logger::log(INFO, "Client {} disconnected", index);
+            LOG(INFO, "Client {} disconnected", index);
         }
 
         // Close the client connection
@@ -163,7 +163,7 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
             mgr->client_sockconn_list_[index].handle = nullptr;
             free(handle);
             mgr->cur_conn_num_--;
-            Logger::log(INFO, "Connection closed. Total connections: {}", mgr->cur_conn_num_);
+            LOG(INFO, "Connection closed. Total connections: {}", mgr->cur_conn_num_);
         });
     }
 
@@ -179,11 +179,11 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     // Get the index for this client
     int index = get_index_for_client((uv_tcp_t*)client);
     if (index < 0 || index >= MAX_SOCKET_NUM) {
-        Logger::log(ERROR, "Invalid client index: {}", index);
+        LOG(ERROR, "Invalid client index: {}", index);
         return -1;
     }
 
-    Logger::log(DEBUG, "Processing {} bytes from client {}", nread, index);
+    LOG(DEBUG, "Processing {} bytes from client {}", nread, index);
 
     SocketConnInfo& cur_conn = client_sockconn_list_[index];
 
@@ -201,7 +201,7 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
 
         // Validate packet size
         if (packet_size <= 0 || packet_size > MAX_CSPKG_LEN) {
-            Logger::log(ERROR, "Invalid packet size {} for client {}", packet_size, index);
+            LOG(ERROR, "Invalid packet size {} for client {}", packet_size, index);
             return -1;
         }
 
@@ -214,13 +214,13 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
             std::unique_ptr<google::protobuf::Message> parsed_message(TcpCode::decode(message));
             if (parsed_message) {
                 // Send the message to Kafka, including the client index
-                if (KafkaManager::instance().produce("new_orders_topic", *parsed_message, index)) {
-                    Logger::log(INFO, "Sent message to Kafka for client {}", index);
+                if (KafkaManager::instance().produce("kafka_topic", *parsed_message, index)) {
+                    LOG(INFO, "Sent message to Kafka for client {}", index);
                 } else {
-                    Logger::log(ERROR, "Failed to send message to Kafka for client {}", index);
+                    LOG(ERROR, "Failed to send message to Kafka for client {}", index);
                 }
             } else {
-                Logger::log(ERROR, "Failed to parse client message for client {}", index);
+                LOG(ERROR, "Failed to parse client message for client {}", index);
             }
 
             total_processed += packet_size;
@@ -235,7 +235,7 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     // Update the buffer start position
     cur_conn.buf_start = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
 
-    Logger::log(INFO, "Processed {} bytes from client {}", total_processed, index);
+    LOG(INFO, "Processed {} bytes from client {}", total_processed, index);
     return 0;
 }
 
@@ -248,7 +248,7 @@ int TcpConnectMgr::tcp_send_data(uv_stream_t* client, const char* databuf, int l
 
 void TcpConnectMgr::on_write(uv_write_t* req, int status) {
     if (status < 0) {
-        Logger::log(ERROR, "Write error: {}", uv_strerror(status));
+        LOG(ERROR, "Write error: {}", uv_strerror(status));
     }
     free(req);
 }
@@ -263,7 +263,7 @@ void TcpConnectMgr::check_timeout() {
     
     // Update statistics
     if (current_time >= laststat_time_ + STAT_TIME) {
-        Logger::log(INFO, "Statistics: sent packages: {}, received packages: {}", 
+        LOG(INFO, "Statistics: sent packages: {}, received packages: {}", 
                     send_pkg_count_ / STAT_TIME, recv_pkg_count_ / STAT_TIME);
 
         send_pkg_count_ = 0;
@@ -277,17 +277,17 @@ void TcpConnectMgr::check_timeout() {
             time_t last_activity = std::max(client_sockconn_list_[i].create_Time, 
                                             client_sockconn_list_[i].recv_data_time);
             if (current_time - last_activity > CLIENT_TIMEOUT) {
-                Logger::log(INFO, "Client {} timed out", i);
+                LOG(INFO, "Client {} timed out", i);
                 uv_handle_t* handle = (uv_handle_t*)client_sockconn_list_[i].handle;
                 if (!uv_is_closing(handle)) {
                     uv_close(handle, [](uv_handle_t* handle) {
-                        Logger::log(INFO, "Closed handle for client {}", (int)(intptr_t)handle->data);
+                        LOG(INFO, "Closed handle for client {}", (int)(intptr_t)handle->data);
                         free(handle);
                     });
                 }
                 client_sockconn_list_[i].handle = nullptr;
                 --cur_conn_num_;
-                Logger::log(INFO, "Connection closed due to timeout. Total connections: {}", cur_conn_num_);
+                LOG(INFO, "Connection closed due to timeout. Total connections: {}", cur_conn_num_);
             }
         }
     }

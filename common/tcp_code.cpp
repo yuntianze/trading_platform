@@ -21,9 +21,9 @@ std::string TcpCode::encode(const google::protobuf::Message& message)
         // Calculate the total length of the message body and add it to the top of the message header
         int len = ::htonl(result.size());
         std::copy(reinterpret_cast<char*>(&len), reinterpret_cast<char*>(&len) + sizeof(len), result.begin());
-        Logger::log(INFO, "Encoded message successfully, name={0:s}", type_name);
+        LOG(INFO, "Encoded message successfully, name={0:s}", type_name);
     } else {
-        Logger::log(ERROR, "Failed to encode message, name={0:s}", type_name);
+        LOG(ERROR, "Failed to encode message, name={0:s}", type_name);
         result.clear();
     }
 
@@ -33,11 +33,11 @@ std::string TcpCode::encode(const google::protobuf::Message& message)
 google::protobuf::Message* TcpCode::decode(const std::string& buf) {
     google::protobuf::Message* result = NULL;
     int len = static_cast<int>(buf.size());  // Total length of the message package
-    Logger::log(INFO, "Decoding message info, pkglen={0:d}", len);
+    LOG(INFO, "Decoding message info, pkglen={0:d}", len);
 
     if (len >= 2*PKGHEAD_FIELD_SIZE) {
         int name_len = convert_int32(buf.c_str()+PKGHEAD_FIELD_SIZE);
-        Logger::log(INFO, "Decoding message info, namelen={0:d}", name_len);
+        LOG(INFO, "Decoding message info, namelen={0:d}", name_len);
 
         if (name_len >= 2 && name_len <= len - 2*PKGHEAD_FIELD_SIZE) {
             std::string type_name(buf.begin() + 2*PKGHEAD_FIELD_SIZE, buf.begin() + 2*PKGHEAD_FIELD_SIZE + name_len-1);
@@ -47,19 +47,19 @@ google::protobuf::Message* TcpCode::decode(const std::string& buf) {
                 int data_len = len - name_len - 2*PKGHEAD_FIELD_SIZE;
                 if (message->ParseFromArray(data, data_len)) {
                     result = message;
-                    Logger::log(INFO, "Decoded message successfully, name={0:s}", type_name);
+                    LOG(INFO, "Decoded message successfully, name={0:s}", type_name);
                 } else {
                     // Failed to parse protobuf message
-                    Logger::log(ERROR, "Failed to decode message, name={0:s}", type_name);
+                    LOG(ERROR, "Failed to decode message, name={0:s}", type_name);
                     delete message;
                 }
             } else {
                 // Failed to create protobuf message
-                Logger::log(ERROR, "Failed to create message, name={0:s}", type_name);
+                LOG(ERROR, "Failed to create message, name={0:s}", type_name);
             }
         } else {
             // Invalid message type length
-            Logger::log(ERROR, "Failed to decode message, invalid namelen={0:d}", name_len);
+            LOG(ERROR, "Failed to decode message, invalid namelen={0:d}", name_len);
         }
     }
 

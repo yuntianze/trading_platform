@@ -75,7 +75,7 @@ class ShmMgr {
 inline ShmCreateInfo* ShmMgr::find_shm_create_info(int shm_key) {
     for (auto it = shm_create_mgr_.begin(); it != shm_create_mgr_.end(); ++it) {
         if ((*it)->key == shm_key) {
-            Logger::log(INFO, "ShmMgr::find_shm_create_info: Found existing key info: key={0:d}", shm_key);
+            LOG(INFO, "ShmMgr::find_shm_create_info: Found existing key info: key={0:d}", shm_key);
             return *it;
         }
     }

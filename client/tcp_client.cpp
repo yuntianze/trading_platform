@@ -34,11 +34,11 @@ void TcpClient::on_connect(uv_connect_t* req, int status) {
     delete req;
 
     if (status < 0) {
-        Logger::log(ERROR, "Connection failed: {}", uv_strerror(status));
+        LOG(ERROR, "Connection failed: {}", uv_strerror(status));
         return;
     }
 
-    Logger::log(INFO, "Connected to server");
+    LOG(INFO, "Connected to server");
 
     // Start reading from the server
     uv_read_start((uv_stream_t*)&client->client_, alloc_buffer, on_read);
@@ -54,7 +54,7 @@ void TcpClient::on_read(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
         client->process_account_login_res(buf->base, nread);
     } else if (nread < 0) {
         if (nread != UV_EOF) {
-            Logger::log(ERROR, "Read error: {}", uv_strerror(nread));
+            LOG(ERROR, "Read error: {}", uv_strerror(nread));
         }
         uv_close((uv_handle_t*)stream, nullptr);
     }
@@ -62,7 +62,7 @@ void TcpClient::on_read(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 
 void TcpClient::on_write(uv_write_t* req, int status) {
     if (status < 0) {
-        Logger::log(ERROR, "Write error: {}", uv_strerror(status));
+        LOG(ERROR, "Write error: {}", uv_strerror(status));
     }
     delete req;
 }
@@ -98,17 +98,17 @@ void TcpClient::process_account_login_res(const char* data, size_t len) {
     std::string buf(data, len);
     std::unique_ptr<google::protobuf::Message> msg(TcpCode::decode(buf));
     if (!msg) {
-        Logger::log(ERROR, "Failed to decode message");
+        LOG(ERROR, "Failed to decode message");
         return;
     }
 
     const cspkg::AccountLoginRes* acc_login_res = dynamic_cast<const cspkg::AccountLoginRes*>(msg.get());
     if (!acc_login_res) {
-        Logger::log(ERROR, "Message is not AccountLoginRes");
+        LOG(ERROR, "Message is not AccountLoginRes");
         return;
     }
 
-    Logger::log(INFO, "Received account login response: account={}, result={}", 
+    LOG(INFO, "Received account login response: account={}, result={}", 
                 acc_login_res->account(), acc_login_res->result());
 }
 
@@ -119,11 +119,11 @@ int main() {
     TcpClient client(loop, CONNECT_IP, CONNECT_PORT);
 
     if (client.init() != 0) {
-        Logger::log(ERROR, "Failed to initialize client");
+        LOG(ERROR, "Failed to initialize client");
         return 1;
     }
 
-    Logger::log(INFO, "Client initialized successfully");
+    LOG(INFO, "Client initialized successfully");
 
     client.run();
 

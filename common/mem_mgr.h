@@ -98,7 +98,7 @@ class MemoryBlock {
 
 inline bool MemoryBlock::is_empty() {
     if (mem_block_head_ == NULL) {
-        Logger::log(ERROR, "Block head is null");
+        LOG(ERROR, "Block head is null");
         return false;
     }
 
@@ -107,12 +107,12 @@ inline bool MemoryBlock::is_empty() {
 
 inline bool MemoryBlock::is_full() {
     if (mem_block_head_ == NULL) {
-        Logger::log(ERROR, "Block head is null");
+        LOG(ERROR, "Block head is null");
         return false;
     }
 
     if (mem_block_head_->block_unit_num == 0) {
-        Logger::log(ERROR, "Block unit num is 0");
+        LOG(ERROR, "Block unit num is 0");
         return false;
     }
 
@@ -217,7 +217,7 @@ inline char* MemoryPool::get_obj(MemBlockType type, UINT index) {
 
 inline MemBlockHead* MemoryPool::get_pool_obj_head(MemBlockType type) {
     if (type >= BLOCK_MAX) {
-        Logger::log(ERROR, "Invalid type, type={0:d}", static_cast<int>(type));
+        LOG(ERROR, "Invalid type, type={0:d}", static_cast<int>(type));
         return NULL;
     }
 

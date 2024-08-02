@@ -2,7 +2,7 @@
  * @file    kafka_manager.h
  * @brief   KafkaManager class declaration for handling Kafka operations with protobuf support
  * @author  stanjiang
- * @date    2024-07-27
+ * @date    2024-08-01
  * @copyright
 ***/
 
@@ -27,7 +27,9 @@ public:
     static KafkaManager& instance();
 
     // Initialize Kafka manager with Oracle Cloud Streaming settings
-    bool init(const std::string& brokers, const std::string& username, const std::string& password);
+    bool init(const std::string& bootstrap_servers,
+              const std::string& username,
+              const std::string& password);
 
     // Produce a protobuf message to a topic with additional metadata
     bool produce(const std::string& topic, const google::protobuf::Message& message, int client_id);
@@ -51,7 +53,7 @@ private:
     KafkaManager& operator=(const KafkaManager&) = delete;
 
     // Kafka configuration
-    std::string brokers_;
+    std::string bootstrap_servers_;
     std::string username_;
     std::string password_;
 

@@ -118,7 +118,7 @@ struct CSPkgHead {
 };
 
 // Statistics interval time
-const int STAT_TIME = 20;
+const int STAT_TIME = 60;
 
 // Statistical information
 struct StatInfo {

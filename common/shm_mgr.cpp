@@ -10,7 +10,7 @@ void* ShmMgr::create_shm(int shm_key, int shm_size, int assign_size) {
     if (shm_info != NULL) {
         // Check if current shared memory has enough space for allocation
         if ((shm_info->offset + assign_size) > shm_info->size) {
-            Logger::log(ERROR, "Not enough shared memory to assign: key={0:d}, shmSize={1:d}, assignSize={2:d}",
+            LOG(ERROR, "Not enough shared memory to assign: key={0:d}, shmSize={1:d}, assignSize={2:d}",
                     shm_key, shm_info->size, assign_size);
             return NULL;
         }
@@ -18,7 +18,7 @@ void* ShmMgr::create_shm(int shm_key, int shm_size, int assign_size) {
         void* assign_shm_mem_addr = static_cast<char*>(shm_info->mem_addr) + shm_info->offset;
         shm_info->offset += assign_size;
 
-        Logger::log(INFO, "Allocated shared memory: key={0:d}, shmSize={1:d}, assignSize={2:d}",
+        LOG(INFO, "Allocated shared memory: key={0:d}, shmSize={1:d}, assignSize={2:d}",
                 shm_key, shm_info->size, assign_size);
 
         return assign_shm_mem_addr;
@@ -30,7 +30,7 @@ void* ShmMgr::create_shm(int shm_key, int shm_size, int assign_size) {
     int shm_id = shmget(shm_key, shm_size, IPC_CREAT|IPC_EXCL|0666);
     if (shm_id < 0) {
         if (errno != EEXIST) {
-            Logger::log(ERROR, "Can't create SHM, key={0:d}, size={1:d}, ErrMsg={2:s}", shm_key, shm_size, strerror(errno));
+            LOG(ERROR, "Can't create SHM, key={0:d}, size={1:d}, ErrMsg={2:s}", shm_key, shm_size, strerror(errno));
             return NULL;
         }
 
@@ -38,14 +38,14 @@ void* ShmMgr::create_shm(int shm_key, int shm_size, int assign_size) {
         start_mode = MODE_RESUME;
         shm_id = shmget(shm_key, shm_size, 0666);
         if (shm_id < 0) {
-            Logger::log(ERROR, "shmget get existing shm error, key={0:d}, size={1:d}", shm_key, shm_size);
+            LOG(ERROR, "shmget get existing shm error, key={0:d}, size={1:d}", shm_key, shm_size);
             return NULL;
         }
     }
 
     shm_mem = static_cast<char*>(shmat(shm_id, NULL, 0));
     if (shm_mem == NULL) {
-        Logger::log(ERROR, "shmat error, key={0:d}, size={1:d}", shm_key, shm_size);
+        LOG(ERROR, "shmat error, key={0:d}, size={1:d}", shm_key, shm_size);
         return NULL;
     }
 
@@ -59,7 +59,7 @@ void* ShmMgr::create_shm(int shm_key, int shm_size, int assign_size) {
     shm_info->shm_id = shm_id;
     shm_create_mgr_.push_back(shm_info);
 
-    Logger::log(INFO, "Shared memory created: key={0:d}, shmSize={1:d}, assignSize={2:d}, shmBlockNum={3:d}",
+    LOG(INFO, "Shared memory created: key={0:d}, shmSize={1:d}, assignSize={2:d}, shmBlockNum={3:d}",
             shm_key, shm_size, assign_size, shm_create_mgr_.size());
 
     return static_cast<void*>(shm_mem);
@@ -69,7 +69,7 @@ int ShmMgr::destroy_shm(int shm_key) {
     ShmCreateInfo* shm_info = find_shm_create_info(shm_key);
     if (shm_info != NULL) {
         if (shmctl(shm_info->shm_id, IPC_RMID, NULL) == -1) {
-            Logger::log(ERROR, "Failed to destroy shared memory: key={0:d}, error={1:s}", shm_key, strerror(errno));
+            LOG(ERROR, "Failed to destroy shared memory: key={0:d}, error={1:s}", shm_key, strerror(errno));
             return -1;
         }
 
@@ -79,10 +79,10 @@ int ShmMgr::destroy_shm(int shm_key) {
         }
         delete shm_info;
 
-        Logger::log(INFO, "Shared memory destroyed: key={0:d}", shm_key);
+        LOG(INFO, "Shared memory destroyed: key={0:d}", shm_key);
         return 0;
     }
 
-    Logger::log(ERROR, "Shared memory not found for destruction: key={0:d}", shm_key);
+    LOG(ERROR, "Shared memory not found for destruction: key={0:d}", shm_key);
     return -1;
 }

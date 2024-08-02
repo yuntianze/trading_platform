@@ -20,8 +20,10 @@ KafkaManager::~KafkaManager() {
 }
 
 // Initialize Kafka manager with Oracle Cloud Streaming settings
-bool KafkaManager::init(const std::string& brokers, const std::string& username, const std::string& password) {
-    brokers_ = brokers;
+bool KafkaManager::init(const std::string& bootstrap_servers,
+                        const std::string& username,
+                        const std::string& password) {
+    bootstrap_servers_ = bootstrap_servers;
     username_ = username;
     password_ = password;
     
@@ -29,41 +31,42 @@ bool KafkaManager::init(const std::string& brokers, const std::string& username,
     std::string errstr;
     RdKafka::Conf* conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
     
-    if (conf->set("bootstrap.servers", brokers_, errstr) != RdKafka::Conf::CONF_OK ||
+    // Set Kafka configuration
+    if (conf->set("bootstrap.servers", bootstrap_servers_, errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("security.protocol", "SASL_SSL", errstr) != RdKafka::Conf::CONF_OK ||
-        conf->set("sasl.mechanism", "PLAIN", errstr) != RdKafka::Conf::CONF_OK) {
-        Logger::log(ERROR, "Failed to set Kafka configuration: {}", errstr);
+        conf->set("sasl.mechanism", "PLAIN", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("sasl.username", username_, errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("sasl.password", password_, errstr) != RdKafka::Conf::CONF_OK) {
+        LOG(ERROR, "Failed to set Kafka configuration: {}", errstr);
+        delete conf;
         return false;
     }
 
-    std::string jaas_config = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"" 
-                              + username_ + "\" password=\"" + password_ + "\";";
-    if (conf->set("sasl.jaas.config", jaas_config, errstr) != RdKafka::Conf::CONF_OK) {
-        Logger::log(ERROR, "Failed to set JAAS config: {}", errstr);
-        return false;
-    }
-
+    // Set delivery report callback
     if (conf->set("dr_cb", &delivery_cb_, errstr) != RdKafka::Conf::CONF_OK) {
-        Logger::log(ERROR, "Failed to set delivery report callback: {}", errstr);
+        LOG(ERROR, "Failed to set delivery report callback: {}", errstr);
+        delete conf;
         return false;
     }
 
+    // Create Kafka producer
     producer_.reset(RdKafka::Producer::create(conf, errstr));
     if (!producer_) {
-        Logger::log(ERROR, "Failed to create Kafka producer: {}", errstr);
+        LOG(ERROR, "Failed to create Kafka producer: {}", errstr);
+        delete conf;
         return false;
     }
 
     delete conf;  // Producer has taken ownership of conf
 
-    Logger::log(INFO, "KafkaManager initialized successfully");
+    LOG(INFO, "KafkaManager initialized successfully");
     return true;
 }
 
 // Produce a protobuf message to a topic
 bool KafkaManager::produce(const std::string& topic, const google::protobuf::Message& message, int client_id) {
     if (!producer_) {
-        Logger::log(ERROR, "Producer not initialized");
+        LOG(ERROR, "Producer not initialized");
         return false;
     }
 
@@ -73,13 +76,15 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
     mutable_message->GetReflection()->SetInt32(mutable_message, 
         mutable_message->GetDescriptor()->FindFieldByName("client_id"), client_id);
 
+    // Serialize the protobuf message
     std::string serialized_message;
     if (!mutable_message->SerializeToString(&serialized_message)) {
-        Logger::log(ERROR, "Failed to serialize protobuf message");
+        LOG(ERROR, "Failed to serialize protobuf message");
         delete mutable_message;
         return false;
     }
 
+    // Produce the message to Kafka
     RdKafka::ErrorCode err = producer_->produce(
         topic,
         RdKafka::Topic::PARTITION_UA,
@@ -95,7 +100,7 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
     delete mutable_message;
 
     if (err != RdKafka::ERR_NO_ERROR) {
-        Logger::log(ERROR, "Failed to produce message: {}", RdKafka::err2str(err));
+        LOG(ERROR, "Failed to produce message: {}", RdKafka::err2str(err));
         return false;
     }
 
@@ -106,43 +111,40 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
 // Start consuming messages from topics
 bool KafkaManager::start_consuming(const std::vector<std::string>& topics, const std::string& group_id, MessageCallback callback) {
     if (consumer_) {
-        Logger::log(ERROR, "Consumer already running");
+        LOG(ERROR, "Consumer already running");
         return false;
     }
 
     std::string errstr;
     RdKafka::Conf* conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
     
-    if (conf->set("bootstrap.servers", brokers_, errstr) != RdKafka::Conf::CONF_OK ||
+    // Set Kafka consumer configuration
+    if (conf->set("bootstrap.servers", bootstrap_servers_, errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("group.id", group_id, errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("auto.offset.reset", "earliest", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("security.protocol", "SASL_SSL", errstr) != RdKafka::Conf::CONF_OK ||
-        conf->set("sasl.mechanism", "PLAIN", errstr) != RdKafka::Conf::CONF_OK) {
-        Logger::log(ERROR, "Failed to set Kafka consumer configuration: {}", errstr);
+        conf->set("sasl.mechanism", "PLAIN", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("sasl.username", username_, errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("sasl.password", password_, errstr) != RdKafka::Conf::CONF_OK) {
+        LOG(ERROR, "Failed to set Kafka consumer configuration: {}", errstr);
         delete conf;
         return false;
     }
 
-    std::string jaas_config = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"" 
-                              + username_ + "\" password=\"" + password_ + "\";";
-    if (conf->set("sasl.jaas.config", jaas_config, errstr) != RdKafka::Conf::CONF_OK) {
-        Logger::log(ERROR, "Failed to set JAAS config for consumer: {}", errstr);
-        delete conf;
-        return false;
-    }
-
+    // Create Kafka consumer
     consumer_.reset(RdKafka::KafkaConsumer::create(conf, errstr));
     if (!consumer_) {
-        Logger::log(ERROR, "Failed to create Kafka consumer: {}", errstr);
+        LOG(ERROR, "Failed to create Kafka consumer: {}", errstr);
         delete conf;
         return false;
     }
 
     delete conf;  // Consumer has taken ownership of conf
 
+    // Subscribe to topics
     RdKafka::ErrorCode err = consumer_->subscribe(topics);
     if (err) {
-        Logger::log(ERROR, "Failed to subscribe to topics: {}", RdKafka::err2str(err));
+        LOG(ERROR, "Failed to subscribe to topics: {}", RdKafka::err2str(err));
         consumer_.reset();
         return false;
     }
@@ -150,7 +152,7 @@ bool KafkaManager::start_consuming(const std::vector<std::string>& topics, const
     running_ = true;
     consumer_thread_ = std::make_unique<std::thread>(&KafkaManager::consume_loop, this, callback);
 
-    Logger::log(INFO, "Started consuming from topics");
+    LOG(INFO, "Started consuming from topics");
     return true;
 }
 
@@ -164,7 +166,7 @@ void KafkaManager::stop_consuming() {
         consumer_->close();
         consumer_.reset();
     }
-    Logger::log(INFO, "Stopped consuming messages");
+    LOG(INFO, "Stopped consuming messages");
 }
 
 // Flush all produced messages
@@ -186,26 +188,34 @@ void KafkaManager::consume_loop(MessageCallback callback) {
 
         switch (msg->err()) {
             case RdKafka::ERR__TIMED_OUT:
+                // No message received within timeout, this is normal
+                // LOG(DEBUG, "Consume timed out");
                 break;
 
             case RdKafka::ERR_NO_ERROR:
                 {
+                    if (msg->len() == 0) {
+                        LOG(DEBUG, "Received empty message");
+                        break;
+                    }
                     std::string payload(static_cast<const char*>(msg->payload()), msg->len());
+                    LOG(DEBUG, "Received message with length: {}", msg->len());
                     auto protobuf_message = deserialize_message(payload);
                     if (protobuf_message) {
                         callback(*protobuf_message);
                     } else {
-                        Logger::log(ERROR, "Failed to deserialize message");
+                        LOG(ERROR, "Failed to deserialize message");
                     }
                 }
                 break;
 
             case RdKafka::ERR__PARTITION_EOF:
                 // Reached end of partition, not an error
+                LOG(DEBUG, "Reached end of partition");
                 break;
 
             default:
-                Logger::log(ERROR, "Consume error: {}", msg->errstr());
+                LOG(ERROR, "Consume error: {}", msg->errstr());
                 break;
         }
     }
@@ -214,24 +224,48 @@ void KafkaManager::consume_loop(MessageCallback callback) {
 // Delivery report callback
 void KafkaManager::DeliveryReportCb::dr_cb(RdKafka::Message& message) {
     if (message.err()) {
-        Logger::log(ERROR, "Message delivery failed: {}", message.errstr());
+        LOG(ERROR, "Message delivery failed: {}", message.errstr());
     } else {
-        Logger::log(INFO, "Message delivered to topic {} [{}] at offset {}",
+        LOG(INFO, "Message delivered to topic {} [{}] at offset {}",
                     message.topic_name(), message.partition(), message.offset());
     }
 }
 
 // Helper function to deserialize protobuf message
 std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(const std::string& payload) {
+     LOG(DEBUG, "Attempting to deserialize message of length: {}", payload.length());
+
+    // Check if the payload is long enough to contain a message type
+    if (payload.length() < 12) {  // 11 (length of "FuturesOrder") + 1 (minimum additional data)
+        LOG(ERROR, "Payload too short to contain a valid message");
+        return nullptr;
+    }
+
     // Here we assume that the first few bytes of the payload contain the message type
     // You might want to implement a more robust message type identification system
-    if (payload.substr(0, 11) == "FuturesOrder") {
+    std::string message_type = payload.substr(0, 11);
+    LOG(DEBUG, "Message type: {}", message_type);
+
+    if (message_type == "FuturesOrder") {
         auto message = std::make_unique<cs_proto::FuturesOrder>();
         if (message->ParseFromString(payload.substr(11))) {
+            LOG(INFO, "Successfully deserialized FuturesOrder message");
             return message;
+        } else {
+            LOG(ERROR, "Failed to parse FuturesOrder message");
         }
     }
-    // Add more message types as needed
+    // Add more message types as needed, for example:
+    // else if (message_type == "OrderResponse") {
+    //     auto message = std::make_unique<cs_proto::OrderResponse>();
+    //     if (message->ParseFromString(payload.substr(11))) {
+    //         LOG(INFO, "Successfully deserialized OrderResponse message");
+    //         return message;
+    //     } else {
+    //         LOG(ERROR, "Failed to parse OrderResponse message");
+    //     }
+    // }
 
+    LOG(ERROR, "Unknown message type: {}", message_type);
     return nullptr;
 }

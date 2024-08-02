@@ -7,7 +7,7 @@ int MemoryPool::init(void) {
     int assign_size = shm_size;
     mempool_base_attr_ = static_cast<char*>(ShmMgr::instance().create_shm(shm_key, shm_size, assign_size));
     if (mempool_base_attr_ == NULL) {
-        Logger::log(ERROR, "Create shm error, key={0:d}, size={1:d}", shm_key, shm_size);
+        LOG(ERROR, "Create shm error, key={0:d}, size={1:d}", shm_key, shm_size);
         return -1;
     }
 
@@ -16,20 +16,20 @@ int MemoryPool::init(void) {
     block_num_ = 0;
     cur_offset_ = 0;
 
-    Logger::log(INFO, "Memory pool init ok: size={0:d}, blocknum={1:d}, offset={2:d}", pool_size_, block_num_, cur_offset_);
+    LOG(INFO, "Memory pool init ok: size={0:d}, blocknum={1:d}, offset={2:d}", pool_size_, block_num_, cur_offset_);
 
     return 0;
 }
 
 int MemoryPool::alloc(MemBlockType type, UINT size, UINT num) {
     if (type >= BLOCK_MAX || type < 0) {
-        Logger::log(ERROR, "Invalid block type: type={0:d}", static_cast<int>(type));
+        LOG(ERROR, "Invalid block type: type={0:d}", static_cast<int>(type));
         return -1;
     }
 
     ULONG need_size = sizeof(MemBlockHead) + (sizeof(UINT) + sizeof(char) + size)*num;
     if (need_size > free_size_) {
-        Logger::log(ERROR, "Not enough memory in pool: need={0:d}, free={1:d}", need_size, free_size_);
+        LOG(ERROR, "Not enough memory in pool: need={0:d}, free={1:d}", need_size, free_size_);
         return -1;
     }
 
@@ -50,7 +50,7 @@ int MemoryBlock::init(MemBlockType type, UINT size, UINT num, ULONG offset) {
 
     mem_block_head_ = reinterpret_cast<MemBlockHead*>(mem_base_attr);
     if (mem_block_head_ == NULL) {
-        Logger::log(ERROR, "Memory block head is null");
+        LOG(ERROR, "Memory block head is null");
         return -1;
     }
 
@@ -86,14 +86,14 @@ int MemoryBlock::init(MemBlockType type, UINT size, UINT num, ULONG offset) {
         // Necessary checks
         if (mem_block_head_->block_unit_size != size || mem_block_head_->block_unit_num != num
             || mem_block_head_->block_type != type) {
-            Logger::log(ERROR, "Invalid shared memory, unitsize={0:d}, num={1:d}, type={2:d}",
+            LOG(ERROR, "Invalid shared memory, unitsize={0:d}, num={1:d}, type={2:d}",
                     mem_block_head_->block_unit_size, mem_block_head_->block_unit_num,
                     static_cast<int>(mem_block_head_->block_type));
             return -1;
         }
     }
 
-    Logger::log(INFO, "Init memory pool, offset={0:d}, head={1:d}, mode={2:d}", offset, sizeof(MemBlockHead),
+    LOG(INFO, "Init memory pool, offset={0:d}, head={1:d}, mode={2:d}", offset, sizeof(MemBlockHead),
             static_cast<int>(mode));
 
     return 0;
@@ -101,13 +101,13 @@ int MemoryBlock::init(MemBlockType type, UINT size, UINT num, ULONG offset) {
 
 char* MemoryBlock::get_free_obj(UINT& mem_unit_index) {
     if (mem_block_head_ == NULL) {
-        Logger::log(ERROR, "Block head is null");
+        LOG(ERROR, "Block head is null");
         return NULL;
     }
 
     // Check if the memory block queue is full
     if (is_full()) {
-        Logger::log(ERROR, "Memory Block is full: totalNum={0:d}, usedNum={1:d}",
+        LOG(ERROR, "Memory Block is full: totalNum={0:d}, usedNum={1:d}",
                 mem_block_head_->block_unit_num, mem_block_head_->used_num);
         return NULL;
     }
@@ -125,7 +125,7 @@ char* MemoryBlock::get_free_obj(UINT& mem_unit_index) {
     static UINT s_uiCount = 0;
     ++s_uiCount;
 
-    Logger::log(INFO, "Get free object ok, type={0:d}, index={1:d}, front={2:d}, usednum={3:d}, totalFreeObj={4:d}",
+    LOG(INFO, "Get free object ok, type={0:d}, index={1:d}, front={2:d}, usednum={3:d}, totalFreeObj={4:d}",
             static_cast<int>(mem_block_head_->block_type),
             mem_unit_index, mem_block_head_->queue_front, mem_block_head_->used_num, s_uiCount);
 
@@ -134,19 +134,19 @@ char* MemoryBlock::get_free_obj(UINT& mem_unit_index) {
 
 int MemoryBlock::release_obj(UINT mem_unit_index) {
     if (mem_block_head_ == NULL) {
-        Logger::log(ERROR, "Block head is null");
+        LOG(ERROR, "Block head is null");
         return -1;
     }
 
     if (mem_unit_index >= mem_block_head_->block_unit_num) {
-        Logger::log(ERROR, "Memory Unit Index beyond bound: curIndex={0:d}, maxIndex={1:d}",
+        LOG(ERROR, "Memory Unit Index beyond bound: curIndex={0:d}, maxIndex={1:d}",
                 mem_unit_index, mem_block_head_->block_unit_num);
         return -1;
     }
 
     // Check if the memory block queue is empty
     if (is_empty()) {
-        Logger::log(ERROR, "Memory Block is empty!");
+        LOG(ERROR, "Memory Block is empty!");
         return -1;
     }
 
@@ -159,7 +159,7 @@ int MemoryBlock::release_obj(UINT mem_unit_index) {
     static UINT s_uiCount = 0;
     ++s_uiCount;
 
-    Logger::log(INFO, "Release object ok, type={0:d}, index={1:d}, tail={2:d}, totalReleaseObj={3:d}",
+    LOG(INFO, "Release object ok, type={0:d}, index={1:d}, tail={2:d}, totalReleaseObj={3:d}",
         static_cast<int>(mem_block_head_->block_type), mem_unit_index, mem_block_head_->queue_tail, s_uiCount);
 
     return 0;
@@ -167,18 +167,18 @@ int MemoryBlock::release_obj(UINT mem_unit_index) {
 
 char* MemoryBlock::get_obj(UINT mem_unit_index) {
     if (mem_block_head_ == NULL) {
-        Logger::log(ERROR, "Block head is null");
+        LOG(ERROR, "Block head is null");
         return NULL;
     }
 
     if (mem_unit_index >= mem_block_head_->block_unit_num) {
-        Logger::log(ERROR, "Memory Unit Index beyond bound: curIndex={0:d}, maxIndex={1:d}",
+        LOG(ERROR, "Memory Unit Index beyond bound: curIndex={0:d}, maxIndex={1:d}",
                 mem_unit_index, mem_block_head_->block_unit_num);
         return NULL;
     }
 
     if (mem_block_head_->unit_used_flag[mem_unit_index] != EMBU_USED) {
-        Logger::log(ERROR, "Memory Block use flag error: flag={0:d}, index={1:d}",
+        LOG(ERROR, "Memory Block use flag error: flag={0:d}, index={1:d}",
                 mem_block_head_->unit_used_flag[mem_unit_index], mem_unit_index);
         return NULL;
     }

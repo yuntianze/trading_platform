@@ -16,7 +16,7 @@ OrderServer::OrderServer()
 }
 
 OrderServer::~OrderServer() {
-    Logger::log(INFO, "OrderServer destroyed");
+    LOG(INFO, "OrderServer destroyed");
 }
 
 OrderServer& OrderServer::instance() {
@@ -38,32 +38,32 @@ int OrderServer::init(ServerStartModel model) {
     if (!kafka_manager_.init(
         "cell-1.streaming.ca-toronto-1.oci.oraclecloud.com:9092",
         "stanjiang2010/stanjiang2010@gmail.com/ocid1.streampool.oc1.ca-toronto-1.amaaaaaauz54kbqapjf3estamgf42ivwojfaktgruwh6frqw2acpodjuxlaq",
-        "AUTH_TOKEN")) {
-        Logger::log(ERROR, "Failed to initialize Kafka manager");
+        "WIe46t6kj<Z[]cN+Y3ug")) {
+        LOG(ERROR, "Failed to initialize Kafka manager");
         return -1;
     }
 
     // Start consuming from the new orders topic
-    if (!kafka_manager_.start_consuming({"new_orders_topic"}, "order_server_consumer_group", 
+    if (!kafka_manager_.start_consuming({"kafka_topic"}, "order_server_consumer_group", 
         [this](const google::protobuf::Message& message) {
             const cs_proto::FuturesOrder& order = dynamic_cast<const cs_proto::FuturesOrder&>(message);
             this->order_processor_.process_new_order(order);
         })) {
-        Logger::log(ERROR, "Failed to start consuming Kafka messages");
+        LOG(ERROR, "Failed to start consuming Kafka messages");
         return -1;
     }
 
     if (order_processor_.init() != 0) {
-        Logger::log(ERROR, "Failed to initialize order processor");
+        LOG(ERROR, "Failed to initialize order processor");
         return -1;
     }
 
-    Logger::log(INFO, "OrderServer initialized successfully");
+    LOG(INFO, "OrderServer initialized successfully");
     return 0;
 }
 
 void OrderServer::run() {
-    Logger::log(INFO, "Starting order server main loop");
+    LOG(INFO, "Starting order server main loop");
     running_ = true;
     while (running_) {
         // Process run flag
@@ -78,27 +78,27 @@ void OrderServer::run() {
         // Small sleep to prevent CPU hogging
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    Logger::log(INFO, "Order server main loop ended");
+    LOG(INFO, "Order server main loop ended");
 }
 
 void OrderServer::process_run_flag() {
     if (reload_config_) {
-        Logger::log(INFO, "Reloading configuration...");
+        LOG(INFO, "Reloading configuration...");
         // Implement config reloading logic here
         // For example:
         // reload_configuration();
         reload_config_ = false;
-        Logger::log(INFO, "Configuration reloaded");
+        LOG(INFO, "Configuration reloaded");
     }
 }
 
 void OrderServer::reload_config() {
-    Logger::log(INFO, "Reload configuration requested");
+    LOG(INFO, "Reload configuration requested");
     reload_config_ = true;
 }
 
 void OrderServer::stop() {
-    Logger::log(INFO, "Stopping order server...");
+    LOG(INFO, "Stopping order server...");
     running_ = false;
     kafka_manager_.stop_consuming();
 }
@@ -125,10 +125,10 @@ void OrderServer::handle_kafka_message(const google::protobuf::Message& message)
     cs_proto::OrderResponse response = order_processor_.process_new_order(order);
     
     // Send the response back to gateway_server via Kafka
-    if (kafka_manager_.produce("order_response_topic", response, order.client_id())) {
-        Logger::log(INFO, "Sent response to Kafka for client {}", order.client_id());
+    if (kafka_manager_.produce("kafka_topic", response, order.client_id())) {
+        LOG(INFO, "Sent response to Kafka for client {}", order.client_id());
     } else {
-        Logger::log(ERROR, "Failed to send response to Kafka for client {}", order.client_id());
+        LOG(ERROR, "Failed to send response to Kafka for client {}", order.client_id());
     }
 }
 
@@ -137,11 +137,11 @@ int OrderServer::init_daemon(ServerStartModel model) {
     const char* lockFilePath = "./order_server.lock";
     int lock_fd = open(lockFilePath, O_RDWR | O_CREAT, 0640);
     if (lock_fd < 0) {
-        Logger::log(ERROR, "Open lock file failed: {}", strerror(errno));
+        LOG(ERROR, "Open lock file failed: {}", strerror(errno));
         return -1;
     }
     if (flock(lock_fd, LOCK_EX | LOCK_NB) < 0) {
-        Logger::log(ERROR, "Lock file failed, another instance is running.");
+        LOG(ERROR, "Lock file failed, another instance is running.");
         close(lock_fd);
         return -1;
     }
@@ -154,7 +154,7 @@ int OrderServer::init_daemon(ServerStartModel model) {
     // Fork child process
     pid_t pid = fork();
     if (pid < 0) {
-        Logger::log(ERROR, "Fork failed: {}", strerror(errno));
+        LOG(ERROR, "Fork failed: {}", strerror(errno));
         close(lock_fd);
         return -1;
     } else if (pid > 0) {
@@ -166,13 +166,13 @@ int OrderServer::init_daemon(ServerStartModel model) {
 
     // Create new session
     if (setsid() < 0) {
-        Logger::log(ERROR, "Setsid failed: {}", strerror(errno));
+        LOG(ERROR, "Setsid failed: {}", strerror(errno));
         return -1;
     }
 
     // Change working directory
     if (chdir("/") < 0) {
-        Logger::log(ERROR, "Chdir failed: {}", strerror(errno));
+        LOG(ERROR, "Chdir failed: {}", strerror(errno));
         return -1;
     }
 
@@ -192,7 +192,7 @@ int OrderServer::init_daemon(ServerStartModel model) {
     // Fork again to avoid becoming a session leader
     pid = fork();
     if (pid < 0) {
-        Logger::log(ERROR, "Fork failed: {}", strerror(errno));
+        LOG(ERROR, "Fork failed: {}", strerror(errno));
         return -1;
     } else if (pid > 0) {
         // First child process exits
@@ -217,11 +217,11 @@ int main(int argc, char **argv) {
     OrderServer& server = OrderServer::instance();
     
     if (server.init(model) != 0) {
-        Logger::log(ERROR, "Failed to initialize Order server");
+        LOG(ERROR, "Failed to initialize Order server");
         return -1;
     }
 
-    Logger::log(INFO, "Order server started successfully");
+    LOG(INFO, "Order server started successfully");
     printf("Order server started successfully\n");
 
     server.run();

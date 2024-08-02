@@ -16,13 +16,6 @@ void Logger::init(const std::string& logFilePath) {
     }
 }
 
-void Logger::log(LogLevel level, const std::string& message) {
-    if (!logger) {
-        throw std::runtime_error("Logger not initialized. Call Logger::init() first.");
-    }
-    logger->log(getSpdlogLevel(level), message);
-}
-
 spdlog::level::level_enum Logger::getSpdlogLevel(LogLevel level) {
     switch (level) {
         case INFO:
