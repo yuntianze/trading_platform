@@ -6,8 +6,6 @@
  * @copyright
 ***/
 
-// order_server.h
-
 #ifndef _ORDER_SERVER_ORDER_SERVER_H_
 #define _ORDER_SERVER_ORDER_SERVER_H_
 
@@ -54,6 +52,12 @@ private:
     
     // Handle incoming Kafka messages
     void handle_kafka_message(const google::protobuf::Message& message);
+
+    // Handle login request
+    void handle_login_request(const cspkg::AccountLoginReq& login_req);
+
+    // Handle futures order
+    void handle_futures_order(const cs_proto::FuturesOrder& order);
 
     // Signal handler
     static void signal_handler(int signum);

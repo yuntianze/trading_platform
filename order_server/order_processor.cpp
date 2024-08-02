@@ -71,3 +71,34 @@ void OrderProcessor::match_orders() {
 
     LOG(INFO, "Order matching completed");
 }
+
+cspkg::AccountLoginRes OrderProcessor::validate_login(const cspkg::AccountLoginReq& login_req) {
+    cspkg::AccountLoginRes response;
+    response.set_account(login_req.account());
+
+    std::lock_guard<std::mutex> lock(session_mutex_);
+
+    // Check if the account exists and the session key is valid
+    auto it = user_sessions_.find(login_req.account());
+    if (it != user_sessions_.end() && it->second == login_req.session_key()) {
+        response.set_result(0);  // Login successful
+        LOG(INFO, "Login successful for account {}", login_req.account());
+    } else {
+        response.set_result(1);  // Login failed
+        LOG(ERROR, "Login failed for account {}", login_req.account());
+    }
+
+    return response;
+}
+
+void OrderProcessor::allocate_user_object(uint32_t account) {
+    std::lock_guard<std::mutex> lock(session_mutex_);
+
+    // Generate a new session key (this is a simplified example)
+    std::string new_session_key = std::to_string(std::rand());
+
+    // Store the new session
+    user_sessions_[account] = new_session_key;
+
+    LOG(INFO, "User object allocated for account {}", account);
+}

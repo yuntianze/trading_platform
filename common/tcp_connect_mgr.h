@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <vector>
 #include "tcp_comm.h"
-
+#include "role.pb.h"
+#include "futures_order.pb.h"
 
 class TcpConnectMgr {
 public:
@@ -53,6 +54,9 @@ public:
     // Get the client handle for a given index
     uv_tcp_t* get_client_by_index(int index);
 
+    // Get the client handle for a given account
+    uv_tcp_t* get_client_by_account(uint32_t account);
+
     // Remove a client connection
     void remove_connection(uv_tcp_t* client);
 
@@ -72,6 +76,12 @@ public:
     static int tcp_send_data(uv_stream_t* client, const char* databuf, int len);
 
 private:
+    // Handle login request
+    void handle_login_request(uv_stream_t* client, const cspkg::AccountLoginReq& login_req, int client_index);
+
+    // Handle futures order
+    void handle_futures_order(uv_stream_t* client, const cs_proto::FuturesOrder& order, int client_index);
+
     static char* current_shmptr_;  // Pointer to the shared memory
 
     char send_client_buf_[SOCK_SEND_BUFFER];  // Buffer for sending messages to clients
@@ -82,6 +92,8 @@ private:
 
     // Map to store client handle to index mapping
     std::unordered_map<uv_tcp_t*, int> client_to_index_;
+    // Map to store account to index mapping
+    std::unordered_map<uint32_t, int> account_to_index_;
     // Vector to store client connection information
     std::vector<SocketConnInfo> client_sockconn_list_;
     // Next available index for new connections
@@ -116,6 +128,15 @@ inline void TcpConnectMgr::remove_connection(uv_tcp_t* client) {
 
 inline size_t TcpConnectMgr::get_connection_count() const {
     return cur_conn_num_;
+}
+
+inline uv_tcp_t* TcpConnectMgr::get_client_by_account(uint32_t account) {
+    auto it = account_to_index_.find(account);
+    if (it != account_to_index_.end()) {
+        int index = it->second;
+        return client_sockconn_list_[index].handle;
+    }
+    return nullptr;
 }
 
 #endif // _TRADING_PLATFORM_COMMON_TCP_CONNECT_MGR_H_

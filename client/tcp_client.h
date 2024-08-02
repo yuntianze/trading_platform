@@ -43,12 +43,19 @@ private:
     // Process account login response
     void process_account_login_res(const char* data, size_t len);
 
+    // Send futures order
+    int send_futures_order();
+
+    // Process order response
+    void process_order_response(const char* data, size_t len);
+
     uv_loop_t* loop_;
     uv_tcp_t client_;
     std::string server_ip_;
     int server_port_;
     char read_buf_[MAX_BUFFER_SIZE];
     std::vector<std::unique_ptr<uv_write_t>> write_reqs_;
+    bool is_logged_in_;  // New flag to track login status
 };
 
 #endif // TCP_CLIENT_H

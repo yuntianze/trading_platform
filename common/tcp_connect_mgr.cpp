@@ -173,10 +173,7 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
     }
 }
 
-// tcp_connect_mgr.cpp
-
 int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
-    // Get the index for this client
     int index = get_index_for_client((uv_tcp_t*)client);
     if (index < 0 || index >= MAX_SOCKET_NUM) {
         LOG(ERROR, "Invalid client index: {}", index);
@@ -193,31 +190,27 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     // Process complete packets
     int total_processed = 0;
     while (cur_conn.recv_bytes >= PKGHEAD_FIELD_SIZE) {
-        // Calculate the position of the packet header
         int header_pos = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
-
-        // Extract packet size from the header
         int packet_size = TcpCode::convert_int32(cur_conn.recv_buf + header_pos);
 
-        // Validate packet size
         if (packet_size <= 0 || packet_size > MAX_CSPKG_LEN) {
             LOG(ERROR, "Invalid packet size {} for client {}", packet_size, index);
             return -1;
         }
 
-        // Check if we have a complete packet
         if (cur_conn.recv_bytes >= packet_size) {
-            // Process the complete packet
             std::string message(cur_conn.recv_buf + header_pos, packet_size);
             
-            // Parse the message and send it to order_server via Kafka
             std::unique_ptr<google::protobuf::Message> parsed_message(TcpCode::decode(message));
             if (parsed_message) {
-                // Send the message to Kafka, including the client index
-                if (KafkaManager::instance().produce("kafka_topic", *parsed_message, index)) {
-                    LOG(INFO, "Sent message to Kafka for client {}", index);
+                if (const auto* login_req = dynamic_cast<const cspkg::AccountLoginReq*>(parsed_message.get())) {
+                    // Handle login request
+                    handle_login_request(client, *login_req, index);
+                } else if (const auto* order = dynamic_cast<const cs_proto::FuturesOrder*>(parsed_message.get())) {
+                    // Handle futures order
+                    handle_futures_order(client, *order, index);
                 } else {
-                    LOG(ERROR, "Failed to send message to Kafka for client {}", index);
+                    LOG(ERROR, "Unknown message type for client {}", index);
                 }
             } else {
                 LOG(ERROR, "Failed to parse client message for client {}", index);
@@ -227,16 +220,36 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
             cur_conn.recv_bytes -= packet_size;
             ++recv_pkg_count_;
         } else {
-            // Incomplete packet, wait for more data
             break;
         }
     }
 
-    // Update the buffer start position
     cur_conn.buf_start = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
 
     LOG(INFO, "Processed {} bytes from client {}", total_processed, index);
     return 0;
+}
+
+void TcpConnectMgr::handle_login_request(uv_stream_t* client, const cspkg::AccountLoginReq& login_req, int client_index) {
+    (void)client;  // Unused
+    // For now, we'll just forward the login request to order_server via Kafka
+    if (KafkaManager::instance().produce("kafka_topic", login_req, client_index)) {
+        LOG(INFO, "Sent AccountLoginReq to Kafka for client {}", client_index);
+        
+        // Store the account to index mapping
+        account_to_index_[login_req.account()] = client_index;
+    } else {
+        LOG(ERROR, "Failed to send AccountLoginReq to Kafka for client {}", client_index);
+    }
+}
+
+void TcpConnectMgr::handle_futures_order(uv_stream_t* client, const cs_proto::FuturesOrder& order, int client_index) {
+    (void)client;  // Unused
+    if (KafkaManager::instance().produce("kafka_topic", order, client_index)) {
+        LOG(INFO, "Sent FuturesOrder to Kafka for client {}", client_index);
+    } else {
+        LOG(ERROR, "Failed to send FuturesOrder to Kafka for client {}", client_index);
+    }
 }
 
 int TcpConnectMgr::tcp_send_data(uv_stream_t* client, const char* databuf, int len) {

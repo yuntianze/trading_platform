@@ -5,6 +5,7 @@
  * @date    2024-07-17
  * @copyright
 */
+
 #ifndef _TRADING_PLATFORM_COMMON_TCP_CODE_H_
 #define _TRADING_PLATFORM_COMMON_TCP_CODE_H_
 
@@ -20,39 +21,23 @@
 /*************************************************************************************/
 
 class TcpCode {
- public:
+public:
     TcpCode() {}
     ~TcpCode() {}
 
-    /***
-     *  @brief   Encode protobuf message
-     *  @param   message: The protobuf message to be encoded
-     *  @return  Encoded string
-     ***/
+    // Encode protobuf message
     static std::string encode(const google::protobuf::Message& message);
 
-    /***
-     *  @brief   Decode protobuf message
-     *  @param   buf: The message stream to be decoded
-     *  @return  Decoded protobuf message
-     ***/
+    // Decode protobuf message
     static google::protobuf::Message* decode(const std::string& buf);
 
-    /***
-     *  @brief   Create message based on protobuf message typename
-     *  @param   type_name: protobuf message typename
-     *  @return  protobuf message
-     ***/
+    // Create message based on protobuf message typename
     static google::protobuf::Message* create_message(const std::string& type_name);
 
-    /***
-     *  @brief   Convert the first four bytes of the message stream to int data in host byte order
-     *  @param   buf: The message stream to be converted
-     *  @return  Converted int data
-     ***/
+    // Convert the first four bytes of the message stream to int data in host byte order
     static int convert_int32(const char* buf);
 
- private:
+private:
 };
 
 #endif  // _TRADING_PLATFORM_COMMON_TCP_CODE_H_

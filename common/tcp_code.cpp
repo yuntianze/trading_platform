@@ -2,6 +2,8 @@
 #include <algorithm>
 #include "tcp_comm.h"
 #include "logger.h"
+#include "role.pb.h"
+#include "futures_order.pb.h"
 
 std::string TcpCode::encode(const google::protobuf::Message& message)
 {
@@ -67,17 +69,17 @@ google::protobuf::Message* TcpCode::decode(const std::string& buf) {
 }
 
 google::protobuf::Message* TcpCode::create_message(const std::string& type_name) {
-    google::protobuf::Message* message = NULL;
-    const google::protobuf::Descriptor* descriptor =
-        google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName(type_name);
-    if (descriptor != NULL) {
-        const google::protobuf::Message* prototype =
-            google::protobuf::MessageFactory::generated_factory()->GetPrototype(descriptor);
-        if (prototype != NULL) {
-            message = prototype->New();
-        }
+    if (type_name == "cspkg.AccountLoginReq") {
+        return new cspkg::AccountLoginReq();
+    } else if (type_name == "cspkg.AccountLoginRes") {
+        return new cspkg::AccountLoginRes();
+    } else if (type_name == "cs_proto.FuturesOrder") {
+        return new cs_proto::FuturesOrder();
+    } else if (type_name == "cs_proto.OrderResponse") {
+        return new cs_proto::OrderResponse();
     }
-    return message;
+    LOG(ERROR, "Unknown message type: {}", type_name);
+    return nullptr;
 }
 
 int TcpCode::convert_int32(const char* buf) {

@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include "logger.h"
+#include "futures_order.pb.h"
+#include "role.pb.h"
 
 const char* LOGFILE = "./log/order_server.log";
 
@@ -46,8 +48,7 @@ int OrderServer::init(ServerStartModel model) {
     // Start consuming from the new orders topic
     if (!kafka_manager_.start_consuming({"kafka_topic"}, "order_server_consumer_group", 
         [this](const google::protobuf::Message& message) {
-            const cs_proto::FuturesOrder& order = dynamic_cast<const cs_proto::FuturesOrder&>(message);
-            this->order_processor_.process_new_order(order);
+            this->handle_kafka_message(message);
         })) {
         LOG(ERROR, "Failed to start consuming Kafka messages");
         return -1;
@@ -79,6 +80,45 @@ void OrderServer::run() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     LOG(INFO, "Order server main loop ended");
+}
+
+void OrderServer::handle_kafka_message(const google::protobuf::Message& message) {
+    if (const auto* login_req = dynamic_cast<const cspkg::AccountLoginReq*>(&message)) {
+        handle_login_request(*login_req);
+    } else if (const auto* order = dynamic_cast<const cs_proto::FuturesOrder*>(&message)) {
+        handle_futures_order(*order);
+    } else {
+        LOG(ERROR, "Received unknown message type");
+    }
+}
+
+void OrderServer::handle_login_request(const cspkg::AccountLoginReq& login_req) {
+    // Use OrderProcessor to validate login
+    cspkg::AccountLoginRes login_res = order_processor_.validate_login(login_req);
+
+    // Send login response back to gateway_server
+    if (kafka_manager_.produce("kafka_topic", login_res, login_req.account())) {
+        LOG(INFO, "Sent AccountLoginRes to Kafka for account {}", login_req.account());
+    } else {
+        LOG(ERROR, "Failed to send AccountLoginRes to Kafka for account {}", login_req.account());
+    }
+
+    if (login_res.result() == 0) {  // Login successful
+        // Allocate user object or perform other necessary operations
+        order_processor_.allocate_user_object(login_req.account());
+    }
+}
+
+void OrderServer::handle_futures_order(const cs_proto::FuturesOrder& order) {
+    // Process the order using OrderProcessor
+    cs_proto::OrderResponse response = order_processor_.process_new_order(order);
+    
+    // Send the response back to gateway_server via Kafka
+    if (kafka_manager_.produce("kafka_topic", response, order.client_id())) {
+        LOG(INFO, "Sent response to Kafka for client {}", order.client_id());
+    } else {
+        LOG(ERROR, "Failed to send response to Kafka for client {}", order.client_id());
+    }
 }
 
 void OrderServer::process_run_flag() {
@@ -115,20 +155,6 @@ void OrderServer::signal_handler(int signum) {
             break;
         default:
             break;
-    }
-}
-
-void OrderServer::handle_kafka_message(const google::protobuf::Message& message) {
-    const cs_proto::FuturesOrder& order = dynamic_cast<const cs_proto::FuturesOrder&>(message);
-    
-    // Process the order
-    cs_proto::OrderResponse response = order_processor_.process_new_order(order);
-    
-    // Send the response back to gateway_server via Kafka
-    if (kafka_manager_.produce("kafka_topic", response, order.client_id())) {
-        LOG(INFO, "Sent response to Kafka for client {}", order.client_id());
-    } else {
-        LOG(ERROR, "Failed to send response to Kafka for client {}", order.client_id());
     }
 }
 

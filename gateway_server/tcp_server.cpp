@@ -2,6 +2,8 @@
 #include <string>
 #include "tcp_code.h"
 #include "logger.h"
+#include "role.pb.h"
+#include "futures_order.pb.h"
 
 const char* LOGFILE = "./log/tcpsvr.log";
 
@@ -120,16 +122,19 @@ int TcpServer::init(ServerStartModel model) {
 void TcpServer::run() {
     LOG(INFO, "Starting server main loop");
     try {
-        int result = uv_run(loop_, UV_RUN_DEFAULT);
-        if (result != 0) {
-            LOG(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+        while (run_flag_ != TCP_EXIT) {
+            // Run the event loop
+            int result = uv_run(loop_, UV_RUN_NOWAIT);
+            if (result < 0) {
+                LOG(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+            }
+
+            // Process Kafka messages
+            kafka_manager_.process_messages();
+
+            // Small sleep to prevent CPU hogging
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-
-        // Process Kafka messages
-        kafka_manager_.process_messages();
-
-        // Small sleep to prevent CPU hogging
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } catch (const std::exception& e) {
         LOG(ERROR, "Unhandled exception in server main loop: {}", e.what());
     } catch (...) {
@@ -139,20 +144,28 @@ void TcpServer::run() {
 }
 
 void TcpServer::handle_kafka_message(const google::protobuf::Message& message) {
-    // Handle the message from order_server
-    // This might involve sending the response back to the client
-    const cs_proto::OrderResponse& response = dynamic_cast<const cs_proto::OrderResponse&>(message);
-    
-    // Find the client connection using the client ID in the response
-    // and send the response back to the client
-    int client_index = response.client_id();
-    uv_tcp_t* client = conn_mgr_->get_client_by_index(client_index);
-    if (client) {
-        std::string encoded_response = TcpCode::encode(response);
-        TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
-        LOG(INFO, "Sent response to client {}", client_index);
+    if (const auto* login_res = dynamic_cast<const cspkg::AccountLoginRes*>(&message)) {
+        // Find the client connection using the account number
+        uv_tcp_t* client = conn_mgr_->get_client_by_account(login_res->account());
+        if (client) {
+            std::string encoded_response = TcpCode::encode(*login_res);
+            TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
+            LOG(INFO, "Sent login response to client for account {}", login_res->account());
+        } else {
+            LOG(ERROR, "Client not found for account: {}", login_res->account());
+        }
+    } else if (const auto* order_res = dynamic_cast<const cs_proto::OrderResponse*>(&message)) {
+        // Find the client connection using the client ID in the response
+        uv_tcp_t* client = conn_mgr_->get_client_by_index(order_res->client_id());
+        if (client) {
+            std::string encoded_response = TcpCode::encode(*order_res);
+            TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
+            LOG(INFO, "Sent response to client {}", order_res->client_id());
+        } else {
+            LOG(ERROR, "Client not found for index: {}", order_res->client_id());
+        }
     } else {
-        LOG(ERROR, "Client not found for index: {}", client_index);
+        LOG(ERROR, "Received unknown message type");
     }
 }
 
