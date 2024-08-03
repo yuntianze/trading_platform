@@ -245,11 +245,13 @@ void TcpServer::on_close(uv_handle_t* handle) {
 
 void TcpServer::sigusr1_handle(int sigval) {
     (void)sigval;
+    LOG(INFO, "Received SIGUSR1 signal. Reloading configuration.");
     TcpServer::instance().reload_config();
 }
 
 void TcpServer::sigusr2_handle(int sigval) {
     (void)sigval;
+    LOG(INFO, "Received SIGUSR2 signal. Stopping server.");
     TcpServer::instance().stop();
 }
 
