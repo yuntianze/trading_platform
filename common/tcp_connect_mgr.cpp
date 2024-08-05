@@ -13,7 +13,6 @@ TcpConnectMgr::TcpConnectMgr() :
     recv_pkg_count_(0),
     laststat_time_(0),
     next_index_(0) {
-    client_sockconn_list_.resize(MAX_SOCKET_NUM);
 }
 
 TcpConnectMgr::~TcpConnectMgr() {
@@ -57,13 +56,20 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
     if (uv_tcp_getpeername(client, (struct sockaddr*)&peer_addr, &addr_len) == 0) {
         uv_ip4_name((struct sockaddr_in*)&peer_addr, addr, sizeof(addr));
         client_sockconn_list_[index].client_ip = inet_addr(addr);
+    } else {
+        LOG(ERROR, "Failed to get peer name");
     }
 
     // Set the data pointer of the uv_tcp_t to the index in our array
     client->data = (void*)(intptr_t)index;
 
     // Start reading from the client
-    uv_read_start((uv_stream_t*)client, alloc_buffer, on_read);
+    int read_start_result = uv_read_start((uv_stream_t*)client, alloc_buffer, on_read);
+    if (read_start_result != 0) {
+        LOG(ERROR, "Failed to start reading from client: {}", uv_strerror(read_start_result));
+        uv_close((uv_handle_t*)client, [](uv_handle_t* handle) { free(handle); });
+        return;
+    }
 
     LOG(INFO, "Handle new connection, index:{}, client ip:{}, total connections: {}",
             index, addr, cur_conn_num_);
@@ -132,18 +138,34 @@ int TcpConnectMgr::init() {
     laststat_time_ = 0;
     cur_conn_num_ = 0;
 
+    client_sockconn_list_.resize(MAX_SOCKET_NUM);
+    for (int i = 0; i < MAX_SOCKET_NUM; ++i) {
+        client_sockconn_list_[i].handle = nullptr;
+        client_sockconn_list_[i].recv_bytes = 0;
+        client_sockconn_list_[i].buf_start = 0;
+    }
+
     LOG(INFO, "TcpConnectMgr initialized successfully");
     return 0;
 }
 
 void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
+    (void)buf;  // Unused
+    
     TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(client->loop->data);
     int index = (int)(intptr_t)client->data;
+
+    if (index < 0 || index >= MAX_SOCKET_NUM) {
+        LOG(ERROR, "Invalid client index: {}", index);
+        uv_close((uv_handle_t*)client, [](uv_handle_t* handle) { free(handle); });
+        return;
+    }
+
     SocketConnInfo& conn = mgr->client_sockconn_list_[index];
 
-    LOG(DEBUG, "Read {} bytes from client {}", nread, index);
-
     if (nread > 0) {
+        LOG(DEBUG, "Read {} bytes from client {}", nread, index);
+        
         // Update the received bytes count
         conn.recv_bytes += nread;
         
@@ -160,15 +182,15 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
         uv_close((uv_handle_t*)client, [](uv_handle_t* handle) {
             TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(handle->loop->data);
             int index = (int)(intptr_t)handle->data;
-            mgr->client_sockconn_list_[index].handle = nullptr;
+            LOG(INFO, "Connection closed. Client index{}, Total connections: {}", index, mgr->cur_conn_num_);
+            mgr->remove_connection((uv_tcp_t*)handle);
             free(handle);
-            mgr->cur_conn_num_--;
-            LOG(INFO, "Connection closed. Total connections: {}", mgr->cur_conn_num_);
         });
     }
 
     // Free the buffer if it was dynamically allocated
     if (buf->base && buf->len == 0) {
+        LOG(DEBUG, "Freeing buffer for client {}", index);
         free(buf->base);
     }
 }
@@ -177,6 +199,9 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     int index = get_index_for_client((uv_tcp_t*)client);
     if (index < 0 || index >= MAX_SOCKET_NUM) {
         LOG(ERROR, "Invalid client index: {}", index);
+        uv_close((uv_handle_t*)client, [](uv_handle_t* handle) {
+            free(handle);
+        });
         return -1;
     }
 
@@ -193,8 +218,13 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
         int header_pos = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
         int packet_size = TcpCode::convert_int32(cur_conn.recv_buf + header_pos);
 
+        LOG(INFO, "Header pos:{}, Packet size: {}", header_pos, packet_size);
+
         if (packet_size <= 0 || packet_size > MAX_CSPKG_LEN) {
             LOG(ERROR, "Invalid packet size {} for client {}", packet_size, index);
+            uv_close((uv_handle_t*)client, [](uv_handle_t* handle) {
+                free(handle);
+            });
             return -1;
         }
 
@@ -205,9 +235,11 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
             if (parsed_message) {
                 if (const auto* login_req = dynamic_cast<const cspkg::AccountLoginReq*>(parsed_message.get())) {
                     // Handle login request
+                    LOG(INFO, "Received AccountLoginReq from client {}", index);
                     handle_login_request(client, *login_req, index);
                 } else if (const auto* order = dynamic_cast<const cs_proto::FuturesOrder*>(parsed_message.get())) {
                     // Handle futures order
+                    LOG(INFO, "Received FuturesOrder from client {}", index);
                     handle_futures_order(client, *order, index);
                 } else {
                     LOG(ERROR, "Unknown message type for client {}", index);
@@ -220,6 +252,7 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
             cur_conn.recv_bytes -= packet_size;
             ++recv_pkg_count_;
         } else {
+            LOG(DEBUG, "Incomplete packet, waiting for more data");
             break;
         }
     }

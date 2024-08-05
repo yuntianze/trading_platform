@@ -70,11 +70,22 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
         return false;
     }
 
+    LOG(DEBUG, "Producing message of type: {}, client_id: {}", message.GetTypeName(), client_id);
+
     // Add client ID to the message
     google::protobuf::Message* mutable_message = message.New();
     mutable_message->CopyFrom(message);
-    mutable_message->GetReflection()->SetInt32(mutable_message, 
-        mutable_message->GetDescriptor()->FindFieldByName("client_id"), client_id);
+
+    // Check if the message has a client_id field before setting it
+    const google::protobuf::FieldDescriptor* client_id_field = 
+        mutable_message->GetDescriptor()->FindFieldByName("client_id");
+    if (client_id_field) {
+        mutable_message->GetReflection()->SetInt32(mutable_message, client_id_field, client_id);
+    } else {
+        LOG(ERROR, "Message type does not have a client_id field. Client ID: {} will not be set.", client_id);
+        delete mutable_message;
+        return false;
+    }
 
     // Serialize the protobuf message
     std::string serialized_message;

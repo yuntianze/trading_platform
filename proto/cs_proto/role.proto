@@ -5,9 +5,11 @@ package cspkg;
 message AccountLoginReq {
    fixed32 account = 1;
    string session_key = 2;
+   int32 client_id = 3;
 }
 
 message AccountLoginRes {
    fixed32 account = 1;
    int32 result = 2;
+   int32 client_id = 3;
 }

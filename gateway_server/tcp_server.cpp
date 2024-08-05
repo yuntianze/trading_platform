@@ -23,6 +23,7 @@ TcpServer::~TcpServer() {
     if (conn_mgr_) {
         delete conn_mgr_;
     }
+    kafka_manager_.stop_consuming();
     LOG(INFO, "TcpServer destroyed");
 }
 
@@ -38,6 +39,8 @@ int TcpServer::init(ServerStartModel model) {
     }
 
     // Set up signal handlers
+    signal(SIGINT, TcpServer::signal_handler);
+    signal(SIGTERM, TcpServer::signal_handler);
     signal(SIGUSR1, TcpServer::sigusr1_handle);
     signal(SIGUSR2, TcpServer::sigusr2_handle);
 
@@ -115,7 +118,7 @@ int TcpServer::init(ServerStartModel model) {
         return -1;
     }
 
-    LOG(INFO, "Server initialized successfully");
+    LOG(DEBUG, "Server initialized successfully");
     return 0;
 }
 
@@ -123,17 +126,23 @@ void TcpServer::run() {
     LOG(INFO, "Starting server main loop");
     try {
         while (run_flag_ != TCP_EXIT) {
-            // Run the event loop
-            int result = uv_run(loop_, UV_RUN_NOWAIT);
-            if (result < 0) {
-                LOG(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+            try {
+                // Run the event loop
+                int result = uv_run(loop_, UV_RUN_NOWAIT);
+                if (result < 0) {
+                    LOG(ERROR, "uv_run returned with error: {}", uv_strerror(result));
+                }
+
+                // Process Kafka messages
+                kafka_manager_.process_messages();
+
+                // Small sleep to prevent CPU hogging
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            } catch (const std::exception& e) {
+                LOG(ERROR, "Exception in server loop iteration: {}", e.what());
+            } catch (...) {
+                LOG(ERROR, "Unknown exception in server loop iteration");
             }
-
-            // Process Kafka messages
-            kafka_manager_.process_messages();
-
-            // Small sleep to prevent CPU hogging
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     } catch (const std::exception& e) {
         LOG(ERROR, "Unhandled exception in server main loop: {}", e.what());
@@ -232,7 +241,10 @@ void TcpServer::on_new_connection(uv_stream_t* server, int status) {
     if (uv_accept(server, (uv_stream_t*)client) == 0) {
         conn_mgr->handle_new_connection(client);
     } else {
-        uv_close((uv_handle_t*)client, on_close);
+        LOG(ERROR, "Failed to accept new connection");
+        uv_close((uv_handle_t*)client, [](uv_handle_t* handle) {
+            free(handle);
+        });
     }
 }
 
@@ -241,6 +253,11 @@ void TcpServer::on_close(uv_handle_t* handle) {
     conn_mgr->remove_connection((uv_tcp_t*)handle);
     free(handle);
     LOG(INFO, "Connection closed. Total connections: {}", conn_mgr->get_connection_count());
+}
+
+void TcpServer::signal_handler(int signum) {
+    LOG(INFO, "Received signal: {}", signum);
+    TcpServer::instance().stop();
 }
 
 void TcpServer::sigusr1_handle(int sigval) {

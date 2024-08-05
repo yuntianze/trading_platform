@@ -71,6 +71,7 @@ private:
     static void on_close(uv_handle_t* handle);
 
     // Signal handlers
+    static void signal_handler(int sigval);
     static void sigusr1_handle(int sigval);
     static void sigusr2_handle(int sigval);
 
