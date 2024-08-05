@@ -71,7 +71,7 @@ private:
     static void on_close(uv_handle_t* handle);
 
     // Signal handlers
-    static void signal_handler(int sigval);
+    static void signal_handler(int signum);
     static void sigusr1_handle(int sigval);
     static void sigusr2_handle(int sigval);
 
@@ -81,6 +81,12 @@ private:
 
     // Kafka message handling
     void handle_kafka_message(const google::protobuf::Message& message);
+
+    // Handle login response
+    void handle_login_response(const cspkg::AccountLoginRes& login_res);
+
+    // Handle order response
+    void handle_order_response(const cs_proto::OrderResponse& order_res);
 
     uv_async_t async_handle_;  // Async handle for signal handling
     uv_timer_t check_timer_;   // Timer for checking connections

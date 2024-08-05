@@ -9,11 +9,13 @@ const char* LOGFILE = "./log/tcpsvr.log";
 
 using std::string;
 
+// Constructor
 TcpServer::TcpServer() 
     : loop_(nullptr), conn_mgr_(nullptr), run_flag_(RUN_INIT),
       kafka_manager_(KafkaManager::instance()) {
 }
 
+// Destructor
 TcpServer::~TcpServer() {
     // Clean up resources
     if (loop_) {
@@ -27,11 +29,13 @@ TcpServer::~TcpServer() {
     LOG(INFO, "TcpServer destroyed");
 }
 
+// Singleton instance getter
 TcpServer& TcpServer::instance() {
     static TcpServer s_inst;
     return s_inst;
 }
 
+// Initialize the server
 int TcpServer::init(ServerStartModel model) {
     // Initialize as daemon if required
     if (init_daemon(model) != 0) {
@@ -110,7 +114,7 @@ int TcpServer::init(ServerStartModel model) {
     }
 
     // Start consuming from the order response topic
-    if (!kafka_manager_.start_consuming({"kafka_topic"}, "gateway_server_consumer_group", 
+    if (!kafka_manager_.start_consuming({"login_response_topic", "order_response_topic"}, "gateway_server_consumer_group", 
         [this](const google::protobuf::Message& message) {
             this->handle_kafka_message(message);
         })) {
@@ -118,10 +122,11 @@ int TcpServer::init(ServerStartModel model) {
         return -1;
     }
 
-    LOG(DEBUG, "Server initialized successfully");
+    LOG(INFO, "Server initialized successfully");
     return 0;
 }
 
+// Run the server main loop
 void TcpServer::run() {
     LOG(INFO, "Starting server main loop");
     try {
@@ -152,52 +157,66 @@ void TcpServer::run() {
     LOG(INFO, "Server main loop ended");
 }
 
+// Handle incoming Kafka messages
 void TcpServer::handle_kafka_message(const google::protobuf::Message& message) {
     if (const auto* login_res = dynamic_cast<const cspkg::AccountLoginRes*>(&message)) {
-        // Find the client connection using the account number
-        uv_tcp_t* client = conn_mgr_->get_client_by_account(login_res->account());
-        if (client) {
-            std::string encoded_response = TcpCode::encode(*login_res);
-            TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
-            LOG(INFO, "Sent login response to client for account {}", login_res->account());
-        } else {
-            LOG(ERROR, "Client not found for account: {}", login_res->account());
-        }
+        handle_login_response(*login_res);
     } else if (const auto* order_res = dynamic_cast<const cs_proto::OrderResponse*>(&message)) {
-        // Find the client connection using the client ID in the response
-        uv_tcp_t* client = conn_mgr_->get_client_by_index(order_res->client_id());
-        if (client) {
-            std::string encoded_response = TcpCode::encode(*order_res);
-            TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
-            LOG(INFO, "Sent response to client {}", order_res->client_id());
-        } else {
-            LOG(ERROR, "Client not found for index: {}", order_res->client_id());
-        }
+        handle_order_response(*order_res);
     } else {
         LOG(ERROR, "Received unknown message type");
     }
 }
 
+// Handle login response
+void TcpServer::handle_login_response(const cspkg::AccountLoginRes& login_res) {
+    uv_tcp_t* client = conn_mgr_->get_client_by_account(login_res.account());
+    if (client) {
+        std::string encoded_response = TcpCode::encode(login_res);
+        TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
+        LOG(INFO, "Sent login response to client for account {}", login_res.account());
+    } else {
+        LOG(ERROR, "Client not found for account: {}", login_res.account());
+    }
+}
+
+// Handle order response
+void TcpServer::handle_order_response(const cs_proto::OrderResponse& order_res) {
+    uv_tcp_t* client = conn_mgr_->get_client_by_index(order_res.client_id());
+    if (client) {
+        std::string encoded_response = TcpCode::encode(order_res);
+        TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
+        LOG(INFO, "Sent order response to client {}", order_res.client_id());
+    } else {
+        LOG(ERROR, "Client not found for index: {}", order_res.client_id());
+    }
+}
+
+// Reload server configuration
 void TcpServer::reload_config() {
     run_flag_ = RELOAD_CFG;
     uv_async_send(&async_handle_);
 }
 
+// Stop the server
 void TcpServer::stop() {
     run_flag_ = TCP_EXIT;
     uv_async_send(&async_handle_);
 }
 
+// Async handler
 void TcpServer::on_async(uv_async_t* handle) {
     TcpServer* server = static_cast<TcpServer*>(handle->data);
     server->process_run_flag();
 }
 
+// Timer handler
 void TcpServer::on_timer(uv_timer_t* handle) {
     TcpServer* server = static_cast<TcpServer*>(handle->data);
     server->perform_periodic_checks();
 }
 
+// Process server running flag
 void TcpServer::process_run_flag() {
     switch (run_flag_) {
         case RELOAD_CFG:
@@ -215,12 +234,14 @@ void TcpServer::process_run_flag() {
     }
 }
 
+// Perform periodic checks
 void TcpServer::perform_periodic_checks() {
     // Perform periodic checks on TcpConnectMgr
     conn_mgr_->check_wait_send_data();
     conn_mgr_->check_timeout();
 }
 
+// Handle new connections
 void TcpServer::on_new_connection(uv_stream_t* server, int status) {
     if (status < 0) {
         LOG(ERROR, "New connection error: {}", uv_strerror(status));
@@ -248,6 +269,7 @@ void TcpServer::on_new_connection(uv_stream_t* server, int status) {
     }
 }
 
+// Handle connection closure
 void TcpServer::on_close(uv_handle_t* handle) {
     TcpConnectMgr* conn_mgr = static_cast<TcpConnectMgr*>(handle->loop->data);
     conn_mgr->remove_connection((uv_tcp_t*)handle);
@@ -255,23 +277,27 @@ void TcpServer::on_close(uv_handle_t* handle) {
     LOG(INFO, "Connection closed. Total connections: {}", conn_mgr->get_connection_count());
 }
 
+// Signal handler
 void TcpServer::signal_handler(int signum) {
     LOG(INFO, "Received signal: {}", signum);
     TcpServer::instance().stop();
 }
 
+// SIGUSR1 handler
 void TcpServer::sigusr1_handle(int sigval) {
     (void)sigval;
     LOG(INFO, "Received SIGUSR1 signal. Reloading configuration.");
     TcpServer::instance().reload_config();
 }
 
+// SIGUSR2 handler
 void TcpServer::sigusr2_handle(int sigval) {
     (void)sigval;
     LOG(INFO, "Received SIGUSR2 signal. Stopping server.");
     TcpServer::instance().stop();
 }
 
+// Initialize as daemon if required
 int TcpServer::init_daemon(ServerStartModel model) {
     // Check if another instance is running
     const char* lockFilePath = "./tcplock.lock";
@@ -347,6 +373,7 @@ int TcpServer::init_daemon(ServerStartModel model) {
     return 0;
 }
 
+// Main function
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;

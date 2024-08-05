@@ -15,6 +15,7 @@
 #include <functional>
 #include <librdkafka/rdkafkacpp.h>
 #include <google/protobuf/message.h>
+#include "role.pb.h"
 #include "futures_order.pb.h"
 #include "logger.h"
 

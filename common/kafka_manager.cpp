@@ -87,13 +87,8 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
         return false;
     }
 
-    // Serialize the protobuf message
-    std::string serialized_message;
-    if (!mutable_message->SerializeToString(&serialized_message)) {
-        LOG(ERROR, "Failed to serialize protobuf message");
-        delete mutable_message;
-        return false;
-    }
+    // Serialize the protobuf message with type information
+    std::string serialized_message = message.GetTypeName() + "\0" + mutable_message->SerializeAsString();
 
     // Produce the message to Kafka
     RdKafka::ErrorCode err = producer_->produce(
@@ -244,39 +239,40 @@ void KafkaManager::DeliveryReportCb::dr_cb(RdKafka::Message& message) {
 
 // Helper function to deserialize protobuf message
 std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(const std::string& payload) {
-     LOG(DEBUG, "Attempting to deserialize message of length: {}", payload.length());
+    LOG(DEBUG, "Attempting to deserialize message of length: {}", payload.length());
 
-    // Check if the payload is long enough to contain a message type
-    if (payload.length() < 12) {  // 11 (length of "FuturesOrder") + 1 (minimum additional data)
-        LOG(ERROR, "Payload too short to contain a valid message");
+    // Find the null terminator that separates the message type from the content
+    size_t null_terminator = payload.find('\0');
+    if (null_terminator == std::string::npos) {
+        LOG(ERROR, "Invalid message format: no null terminator found");
         return nullptr;
     }
 
-    // Here we assume that the first few bytes of the payload contain the message type
-    // You might want to implement a more robust message type identification system
-    std::string message_type = payload.substr(0, 11);
+    std::string message_type = payload.substr(0, null_terminator);
+    std::string message_content = payload.substr(null_terminator + 1);
+
     LOG(DEBUG, "Message type: {}", message_type);
 
-    if (message_type == "FuturesOrder") {
-        auto message = std::make_unique<cs_proto::FuturesOrder>();
-        if (message->ParseFromString(payload.substr(11))) {
-            LOG(INFO, "Successfully deserialized FuturesOrder message");
-            return message;
-        } else {
-            LOG(ERROR, "Failed to parse FuturesOrder message");
-        }
-    }
-    // Add more message types as needed, for example:
-    // else if (message_type == "OrderResponse") {
-    //     auto message = std::make_unique<cs_proto::OrderResponse>();
-    //     if (message->ParseFromString(payload.substr(11))) {
-    //         LOG(INFO, "Successfully deserialized OrderResponse message");
-    //         return message;
-    //     } else {
-    //         LOG(ERROR, "Failed to parse OrderResponse message");
-    //     }
-    // }
+    std::unique_ptr<google::protobuf::Message> message;
 
-    LOG(ERROR, "Unknown message type: {}", message_type);
-    return nullptr;
+    if (message_type == "cspkg.AccountLoginReq") {
+        message = std::make_unique<cspkg::AccountLoginReq>();
+    } else if (message_type == "cspkg.AccountLoginRes") {
+        message = std::make_unique<cspkg::AccountLoginRes>();
+    } else if (message_type == "cs_proto.FuturesOrder") {
+        message = std::make_unique<cs_proto::FuturesOrder>();
+    } else if (message_type == "cs_proto.OrderResponse") {
+        message = std::make_unique<cs_proto::OrderResponse>();
+    } else {
+        LOG(ERROR, "Unknown message type: {}", message_type);
+        return nullptr;
+    }
+
+    if (!message->ParseFromString(message_content)) {
+        LOG(ERROR, "Failed to parse {} message", message_type);
+        return nullptr;
+    }
+
+    LOG(INFO, "Successfully deserialized {} message", message_type);
+    return message;
 }

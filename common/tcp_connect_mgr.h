@@ -12,9 +12,15 @@
 #include <uv.h>
 #include <unordered_map>
 #include <vector>
+#include <string>
 #include "tcp_comm.h"
 #include "role.pb.h"
 #include "futures_order.pb.h"
+
+// Kafka topic for login messages
+const std::string GATEWAY_TO_ORDER_LOGIN_TOPIC = "kafka_topic";
+// Kafka topic for futures messages
+const std::string GATEWAY_TO_ORDER_FUTURES_TOPIC = "kafka_topic";
 
 class TcpConnectMgr {
 public:

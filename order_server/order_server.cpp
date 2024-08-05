@@ -35,6 +35,7 @@ int OrderServer::init(ServerStartModel model) {
     signal(SIGINT, OrderServer::signal_handler);
     signal(SIGTERM, OrderServer::signal_handler);
     signal(SIGUSR1, OrderServer::signal_handler);
+    signal(SIGUSR2, OrderServer::signal_handler);
 
     // Initialize KafkaManager with Oracle Cloud Streaming settings
     if (!kafka_manager_.init(
@@ -148,6 +149,7 @@ void OrderServer::signal_handler(int signum) {
     switch (signum) {
         case SIGINT:
         case SIGTERM:
+        case SIGUSR2:
             server.stop();
             break;
         case SIGUSR1:

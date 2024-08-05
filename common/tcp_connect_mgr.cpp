@@ -265,12 +265,12 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
 
 void TcpConnectMgr::handle_login_request(uv_stream_t* client, const cspkg::AccountLoginReq& login_req, int client_index) {
     (void)client;  // Unused
-    // For now, we'll just forward the login request to order_server via Kafka
-    if (KafkaManager::instance().produce("kafka_topic", login_req, client_index)) {
-        LOG(INFO, "Sent AccountLoginReq to Kafka for client {}", client_index);
-        
-        // Store the account to index mapping
-        account_to_index_[login_req.account()] = client_index;
+    // Store the account to index mapping
+    account_to_index_[login_req.account()] = client_index;
+
+    // Forward the login request to order_server via Kafka
+    if (KafkaManager::instance().produce(GATEWAY_TO_ORDER_LOGIN_TOPIC, login_req, client_index)) {
+        LOG(INFO, "Sent AccountLoginReq to Kafka for client:{}, topic:{}", client_index, GATEWAY_TO_ORDER_LOGIN_TOPIC);
     } else {
         LOG(ERROR, "Failed to send AccountLoginReq to Kafka for client {}", client_index);
     }
@@ -278,8 +278,8 @@ void TcpConnectMgr::handle_login_request(uv_stream_t* client, const cspkg::Accou
 
 void TcpConnectMgr::handle_futures_order(uv_stream_t* client, const cs_proto::FuturesOrder& order, int client_index) {
     (void)client;  // Unused
-    if (KafkaManager::instance().produce("kafka_topic", order, client_index)) {
-        LOG(INFO, "Sent FuturesOrder to Kafka for client {}", client_index);
+    if (KafkaManager::instance().produce(GATEWAY_TO_ORDER_FUTURES_TOPIC, order, client_index)) {
+        LOG(INFO, "Sent FuturesOrder to Kafka for client {}, topic {}", client_index, GATEWAY_TO_ORDER_FUTURES_TOPIC);
     } else {
         LOG(ERROR, "Failed to send FuturesOrder to Kafka for client {}", client_index);
     }

@@ -69,7 +69,7 @@ void OrderProcessor::match_orders() {
     // - Updating order statuses
     // - Sending trade confirmations
 
-    LOG(INFO, "Order matching completed");
+    // LOG(INFO, "Order matching completed");
 }
 
 cspkg::AccountLoginRes OrderProcessor::validate_login(const cspkg::AccountLoginReq& login_req) {
