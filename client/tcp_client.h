@@ -12,6 +12,7 @@ const char CONNECT_IP[] = "140.238.154.0";
 
 class TcpClient {
 public:
+    // Constructor and destructor
     TcpClient(uv_loop_t* loop, const char* ip, int port);
     ~TcpClient();
 
@@ -51,11 +52,13 @@ private:
 
     uv_loop_t* loop_;
     uv_tcp_t client_;
+    std::unique_ptr<uv_connect_t> connect_req_;  // Added unique_ptr for connect request
     std::string server_ip_;
     int server_port_;
     char read_buf_[MAX_BUFFER_SIZE];
     std::vector<std::unique_ptr<uv_write_t>> write_reqs_;
-    bool is_logged_in_;  // New flag to track login status
+    bool is_logged_in_;  // Flag to track login status
+    bool login_response_received_;  // Flag to track if login response is received
 };
 
 #endif // TCP_CLIENT_H
