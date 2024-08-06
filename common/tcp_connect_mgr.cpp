@@ -110,7 +110,7 @@ void TcpConnectMgr::alloc_buffer(uv_handle_t* handle, size_t suggested_size, uv_
 }
 
 TcpConnectMgr* TcpConnectMgr::create_instance() {
-    int shm_key = SOCKET_SHM_KEY;
+    int shm_key = ConfigManager::instance().get_int("SOCKET_SHM_KEY");;
     int shm_size = count_size();
     int assign_size = shm_size;
     current_shmptr_ = static_cast<char*>(ShmMgr::instance().create_shm(shm_key, shm_size, assign_size));

@@ -40,8 +40,6 @@ typedef std::uint64_t ULONG;
 #define IP_LENGTH         20        // IP address length
 #define RECV_BUF_LEN      16384     // Buffer size for receiving client information
 
-// System constant parameter definitions
-const USHORT CONNECT_PORT = 9218;  // Connection port
 
 // Number of test connections for tcpclient
 const int MAX_CLIENT_CONN = 100;
@@ -58,9 +56,6 @@ const int LISTEN_BACKLOG = 512;
 
 // Shared memory key for client usage
 const int CLIENT_SHM_KEY = 1110;
-
-// Shared memory key for storing socket connections
-const int SOCKET_SHM_KEY = 1111;
 
 // Size of the length field in the CS communication package header
 const int PKGHEAD_FIELD_SIZE = sizeof(int);

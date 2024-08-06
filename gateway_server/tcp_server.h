@@ -16,13 +16,6 @@
 #include "kafka_manager.h"
 
 
-// Kafka topic from gateway_server to order_server messages
-const std::string GATEWAY_TO_ORDER_TOPIC = "gateway_to_order_topic";
-// Kafka topic from order_server to gateway_server messages
-const std::string ORDER_TO_GATEWAY_TOPIC = "order_to_gateway_topic";
-// Kafka consumer group ID
-const std::string GATEWAY_KAFKA_CONSUMER_GROUP_ID = "gateway_server_consumer_group";
-
 // Server start modes
 enum ServerStartModel {
     SERVER_START_NODAEMON = 0,

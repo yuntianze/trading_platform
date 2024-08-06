@@ -103,8 +103,8 @@ private:
     std::vector<SocketConnInfo> client_sockconn_list_;
     // Next available index for new connections
     int next_index_;
-
-    std::string gateway_to_order_topic_;  // Kafka topic for gateway to order messages
+    // Kafka topic for gateway to order messages
+    std::string gateway_to_order_topic_;
 };
 
 // Implementation of inline methods
