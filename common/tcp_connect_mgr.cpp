@@ -4,6 +4,7 @@
 #include "tcp_code.h"
 #include "kafka_manager.h"
 #include "logger.h"
+#include "config_manager.h"
 
 char* TcpConnectMgr::current_shmptr_ = nullptr;
 
@@ -145,6 +146,8 @@ int TcpConnectMgr::init() {
         client_sockconn_list_[i].buf_start = 0;
     }
 
+    gateway_to_order_topic_ = ConfigManager::instance().get_string("GATEWAY_TO_ORDER_TOPIC");
+
     LOG(INFO, "TcpConnectMgr initialized successfully");
     return 0;
 }
@@ -269,8 +272,8 @@ void TcpConnectMgr::handle_login_request(uv_stream_t* client, const cspkg::Accou
     account_to_index_[login_req.account()] = client_index;
 
     // Forward the login request to order_server via Kafka
-    if (KafkaManager::instance().produce(GATEWAY_TO_ORDER_LOGIN_TOPIC, login_req, client_index)) {
-        LOG(INFO, "Sent AccountLoginReq to Kafka for client:{}, topic:{}", client_index, GATEWAY_TO_ORDER_LOGIN_TOPIC);
+    if (KafkaManager::instance().produce(gateway_to_order_topic_, login_req, client_index)) {
+        LOG(INFO, "Sent AccountLoginReq to Kafka for client:{}, topic:{}", client_index, gateway_to_order_topic_);
     } else {
         LOG(ERROR, "Failed to send AccountLoginReq to Kafka for client {}", client_index);
     }
@@ -278,8 +281,8 @@ void TcpConnectMgr::handle_login_request(uv_stream_t* client, const cspkg::Accou
 
 void TcpConnectMgr::handle_futures_order(uv_stream_t* client, const cs_proto::FuturesOrder& order, int client_index) {
     (void)client;  // Unused
-    if (KafkaManager::instance().produce(GATEWAY_TO_ORDER_FUTURES_TOPIC, order, client_index)) {
-        LOG(INFO, "Sent FuturesOrder to Kafka for client {}, topic {}", client_index, GATEWAY_TO_ORDER_FUTURES_TOPIC);
+    if (KafkaManager::instance().produce(gateway_to_order_topic_, order, client_index)) {
+        LOG(INFO, "Sent FuturesOrder to Kafka for client {}, topic {}", client_index, gateway_to_order_topic_);
     } else {
         LOG(ERROR, "Failed to send FuturesOrder to Kafka for client {}", client_index);
     }

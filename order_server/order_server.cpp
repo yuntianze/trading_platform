@@ -7,6 +7,7 @@
 #include "logger.h"
 #include "futures_order.pb.h"
 #include "role.pb.h"
+#include "config_manager.h"
 
 const char* LOGFILE = "./log/order_server.log";
 
@@ -28,6 +29,13 @@ OrderServer& OrderServer::instance() {
 
 int OrderServer::init(ServerStartModel model) {
     if (init_daemon(model) != 0) {
+        LOG(ERROR, "Failed to initialize daemon");
+        return -1;
+    }
+
+    // Load configuration
+    if (!ConfigManager::instance().load_config(".env")) {
+        LOG(ERROR, "Failed to load configuration");
         return -1;
     }
 
@@ -39,21 +47,24 @@ int OrderServer::init(ServerStartModel model) {
 
     // Initialize KafkaManager with Oracle Cloud Streaming settings
     if (!kafka_manager_.init(
-        "cell-1.streaming.ca-toronto-1.oci.oraclecloud.com:9092",
-        "stanjiang2010/stanjiang2010@gmail.com/ocid1.streampool.oc1.ca-toronto-1.amaaaaaauz54kbqapjf3estamgf42ivwojfaktgruwh6frqw2acpodjuxlaq",
-        "WIe46t6kj<Z[]cN+Y3ug")) {
+        ConfigManager::instance().get_string("KAFKA_BOOTSTRAP_SERVERS"),
+        ConfigManager::instance().get_string("KAFKA_USERNAME"),
+        ConfigManager::instance().get_string("KAFKA_PASSWORD"))) {
         LOG(ERROR, "Failed to initialize Kafka manager");
         return -1;
     }
 
     // Start consuming from the new orders topic
-    if (!kafka_manager_.start_consuming({GATEWAY_TO_ORDER_TOPIC}, ORDER_KAFKA_CONSUMER_GROUP_ID, 
+    if (!kafka_manager_.start_consuming({ConfigManager::instance().get_string("GATEWAY_TO_ORDER_TOPIC")}, 
+        ConfigManager::instance().get_string("ORDER_KAFKA_CONSUMER_GROUP_ID"), 
         [this](const google::protobuf::Message& message) {
             this->handle_kafka_message(message);
         })) {
         LOG(ERROR, "Failed to start consuming Kafka messages");
         return -1;
     }
+
+    order_to_gateway_topic_ = ConfigManager::instance().get_string("ORDER_TO_GATEWAY_TOPIC");
 
     if (order_processor_.init() != 0) {
         LOG(ERROR, "Failed to initialize order processor");
@@ -98,7 +109,7 @@ void OrderServer::handle_login_request(const cspkg::AccountLoginReq& login_req) 
     cspkg::AccountLoginRes login_res = order_processor_.validate_login(login_req);
 
     // Send login response back to gateway_server
-    if (kafka_manager_.produce(ORDER_TO_GATEWAY_TOPIC, login_res, login_req.account())) {
+    if (kafka_manager_.produce(order_to_gateway_topic_, login_res, login_req.account())) {
         LOG(INFO, "Sent AccountLoginRes to Kafka for account {}", login_req.account());
     } else {
         LOG(ERROR, "Failed to send AccountLoginRes to Kafka for account {}", login_req.account());
@@ -115,7 +126,7 @@ void OrderServer::handle_futures_order(const cs_proto::FuturesOrder& order) {
     cs_proto::OrderResponse response = order_processor_.process_new_order(order);
     
     // Send the response back to gateway_server via Kafka
-    if (kafka_manager_.produce(ORDER_TO_GATEWAY_TOPIC, response, order.client_id())) {
+    if (kafka_manager_.produce(order_to_gateway_topic_, response, order.client_id())) {
         LOG(INFO, "Sent response to Kafka for client {}", order.client_id());
     } else {
         LOG(ERROR, "Failed to send response to Kafka for client {}", order.client_id());

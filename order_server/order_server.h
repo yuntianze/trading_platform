@@ -10,15 +10,10 @@
 #define _ORDER_SERVER_ORDER_SERVER_H_
 
 #include <atomic>
+#include <string>
 #include "kafka_manager.h"
 #include "order_processor.h"
 
-// Kafka topic from gateway_server to order_server messages
-const std::string GATEWAY_TO_ORDER_TOPIC = "gateway_to_order_topic";
-// Kafka topic from order_server to gateway_server messages
-const std::string ORDER_TO_GATEWAY_TOPIC = "order_to_gateway_topic";
-// Kafka consumer group ID
-const std::string ORDER_KAFKA_CONSUMER_GROUP_ID = "order_server_consumer_group";
 
 // Server start modes
 enum ServerStartModel {
@@ -69,10 +64,11 @@ private:
     // Signal handler
     static void signal_handler(int signum);
 
-    std::atomic<bool> running_;       // Flag to control the main loop
-    std::atomic<bool> reload_config_; // Flag for configuration reload
-    KafkaManager& kafka_manager_;     // Kafka manager instance
-    OrderProcessor order_processor_;  // Order processor instance
+    std::atomic<bool> running_;        // Flag to control the main loop
+    std::atomic<bool> reload_config_;  // Flag for configuration reload
+    KafkaManager& kafka_manager_;      // Kafka manager instance
+    OrderProcessor order_processor_;   // Order processor instance
+    std::string order_to_gateway_topic_;  // Kafka topic for order messages
 };
 
 #endif // _ORDER_SERVER_ORDER_SERVER_H_

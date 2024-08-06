@@ -4,6 +4,7 @@
 #include "logger.h"
 #include "role.pb.h"
 #include "futures_order.pb.h"
+#include "config_manager.h"
 
 const char* LOGFILE = "./log/tcpsvr.log";
 
@@ -39,6 +40,13 @@ TcpServer& TcpServer::instance() {
 int TcpServer::init(ServerStartModel model) {
     // Initialize as daemon if required
     if (init_daemon(model) != 0) {
+        LOG(ERROR, "Failed to initialize as daemon");
+        return -1;
+    }
+
+    // Load configuration
+    if (!ConfigManager::instance().load_config(".env")) {
+        LOG(ERROR, "Failed to load configuration");
         return -1;
     }
 
@@ -81,7 +89,9 @@ int TcpServer::init(ServerStartModel model) {
 
     // Bind server to address
     struct sockaddr_in addr;
-    uv_ip4_addr("0.0.0.0", CONNECT_PORT, &addr);
+    std::string ip = ConfigManager::instance().get_string("GATEWAY_SERVER_IP", "0.0.0.0");
+    int port = ConfigManager::instance().get_int("GATEWAY_SERVER_PORT", 9000);
+    uv_ip4_addr(ip.c_str(), port, &addr);
     if (uv_tcp_bind(&server_, (const struct sockaddr*)&addr, 0) != 0) {
         LOG(ERROR, "Failed to bind server");
         return -1;
@@ -106,15 +116,16 @@ int TcpServer::init(ServerStartModel model) {
 
     // Initialize KafkaManager
     if (!kafka_manager_.init(
-        "cell-1.streaming.ca-toronto-1.oci.oraclecloud.com:9092",
-        "stanjiang2010/stanjiang2010@gmail.com/ocid1.streampool.oc1.ca-toronto-1.amaaaaaauz54kbqapjf3estamgf42ivwojfaktgruwh6frqw2acpodjuxlaq",
-        "WIe46t6kj<Z[]cN+Y3ug")) {
+        ConfigManager::instance().get_string("KAFKA_BOOTSTRAP_SERVERS"),
+        ConfigManager::instance().get_string("KAFKA_USERNAME"),
+        ConfigManager::instance().get_string("KAFKA_PASSWORD"))) {
         LOG(ERROR, "Failed to initialize Kafka manager");
         return -1;
     }
 
     // Start consuming from the order response topic
-    if (!kafka_manager_.start_consuming({ORDER_TO_GATEWAY_TOPIC}, GATEWAY_KAFKA_CONSUMER_GROUP_ID, 
+    if (!kafka_manager_.start_consuming({ConfigManager::instance().get_string("ORDER_TO_GATEWAY_TOPIC")}, 
+        ConfigManager::instance().get_string("GATEWAY_KAFKA_CONSUMER_GROUP_ID"), 
         [this](const google::protobuf::Message& message) {
             this->handle_kafka_message(message);
         })) {

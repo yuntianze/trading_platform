@@ -17,10 +17,6 @@
 #include "role.pb.h"
 #include "futures_order.pb.h"
 
-// Kafka topic for login messages
-const std::string GATEWAY_TO_ORDER_LOGIN_TOPIC = "gateway_to_order_topic";
-// Kafka topic for futures messages
-const std::string GATEWAY_TO_ORDER_FUTURES_TOPIC = "gateway_to_order_topic";
 
 class TcpConnectMgr {
 public:
@@ -88,6 +84,9 @@ private:
     // Handle futures order
     void handle_futures_order(uv_stream_t* client, const cs_proto::FuturesOrder& order, int client_index);
 
+    // Add a new client connection
+    int add_new_connection(uv_tcp_t* client);
+
     static char* current_shmptr_;  // Pointer to the shared memory
 
     char send_client_buf_[SOCK_SEND_BUFFER];  // Buffer for sending messages to clients
@@ -105,8 +104,7 @@ private:
     // Next available index for new connections
     int next_index_;
 
-    // Add a new client connection
-    int add_new_connection(uv_tcp_t* client);
+    std::string gateway_to_order_topic_;  // Kafka topic for gateway to order messages
 };
 
 // Implementation of inline methods
