@@ -18,9 +18,9 @@
 #include "futures_order.pb.h"
 
 // Kafka topic for login messages
-const std::string GATEWAY_TO_ORDER_LOGIN_TOPIC = "kafka_topic";
+const std::string GATEWAY_TO_ORDER_LOGIN_TOPIC = "gateway_to_order_topic";
 // Kafka topic for futures messages
-const std::string GATEWAY_TO_ORDER_FUTURES_TOPIC = "kafka_topic";
+const std::string GATEWAY_TO_ORDER_FUTURES_TOPIC = "gateway_to_order_topic";
 
 class TcpConnectMgr {
 public:

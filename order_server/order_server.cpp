@@ -47,7 +47,7 @@ int OrderServer::init(ServerStartModel model) {
     }
 
     // Start consuming from the new orders topic
-    if (!kafka_manager_.start_consuming({"kafka_topic"}, "order_server_consumer_group", 
+    if (!kafka_manager_.start_consuming({GATEWAY_TO_ORDER_TOPIC}, ORDER_KAFKA_CONSUMER_GROUP_ID, 
         [this](const google::protobuf::Message& message) {
             this->handle_kafka_message(message);
         })) {
@@ -98,7 +98,7 @@ void OrderServer::handle_login_request(const cspkg::AccountLoginReq& login_req) 
     cspkg::AccountLoginRes login_res = order_processor_.validate_login(login_req);
 
     // Send login response back to gateway_server
-    if (kafka_manager_.produce("kafka_topic", login_res, login_req.account())) {
+    if (kafka_manager_.produce(ORDER_TO_GATEWAY_TOPIC, login_res, login_req.account())) {
         LOG(INFO, "Sent AccountLoginRes to Kafka for account {}", login_req.account());
     } else {
         LOG(ERROR, "Failed to send AccountLoginRes to Kafka for account {}", login_req.account());
@@ -115,7 +115,7 @@ void OrderServer::handle_futures_order(const cs_proto::FuturesOrder& order) {
     cs_proto::OrderResponse response = order_processor_.process_new_order(order);
     
     // Send the response back to gateway_server via Kafka
-    if (kafka_manager_.produce("kafka_topic", response, order.client_id())) {
+    if (kafka_manager_.produce(ORDER_TO_GATEWAY_TOPIC, response, order.client_id())) {
         LOG(INFO, "Sent response to Kafka for client {}", order.client_id());
     } else {
         LOG(ERROR, "Failed to send response to Kafka for client {}", order.client_id());

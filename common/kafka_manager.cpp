@@ -72,38 +72,47 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
 
     LOG(DEBUG, "Producing message of type: {}, client_id: {}", message.GetTypeName(), client_id);
 
-    // Add client ID to the message
-    google::protobuf::Message* mutable_message = message.New();
+    // Create a mutable copy of the message
+    std::unique_ptr<google::protobuf::Message> mutable_message(message.New());
     mutable_message->CopyFrom(message);
 
-    // Check if the message has a client_id field before setting it
+    // Check if the message has a client_id field and set it if present
     const google::protobuf::FieldDescriptor* client_id_field = 
         mutable_message->GetDescriptor()->FindFieldByName("client_id");
     if (client_id_field) {
-        mutable_message->GetReflection()->SetInt32(mutable_message, client_id_field, client_id);
+        mutable_message->GetReflection()->SetInt32(mutable_message.get(), client_id_field, client_id);
     } else {
         LOG(ERROR, "Message type does not have a client_id field. Client ID: {} will not be set.", client_id);
-        delete mutable_message;
         return false;
     }
 
     // Serialize the protobuf message with type information
-    std::string serialized_message = message.GetTypeName() + "\0" + mutable_message->SerializeAsString();
+    std::string type_name = message.GetTypeName();
+    std::string serialized_content = mutable_message->SerializeAsString();
+    
+    // Combine type name, null separator, and serialized content
+    std::string serialized_message;
+    serialized_message.reserve(type_name.length() + 1 + serialized_content.length());
+    serialized_message.append(type_name);
+    serialized_message.push_back('\0');
+    serialized_message.append(serialized_content);
+
+    // Log the serialized message details for debugging
+    LOG(DEBUG, "Serialized message: type='{}', content_length={}, total_length={}",
+        type_name, serialized_content.length(), serialized_message.length());
 
     // Produce the message to Kafka
     RdKafka::ErrorCode err = producer_->produce(
         topic,
         RdKafka::Topic::PARTITION_UA,
         RdKafka::Producer::RK_MSG_COPY,
-        const_cast<char*>(serialized_message.c_str()),
+        const_cast<char*>(serialized_message.data()),
         serialized_message.size(),
         nullptr,  // No key
         0,        // No key length
         0,        // Use current timestamp
         nullptr   // No message headers
     );
-
-    delete mutable_message;
 
     if (err != RdKafka::ERR_NO_ERROR) {
         LOG(ERROR, "Failed to produce message: {}", RdKafka::err2str(err));
@@ -241,6 +250,10 @@ void KafkaManager::DeliveryReportCb::dr_cb(RdKafka::Message& message) {
 std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(const std::string& payload) {
     LOG(DEBUG, "Attempting to deserialize message of length: {}", payload.length());
 
+    // Log the raw payload for debugging
+    LOG(DEBUG, "Raw payload: length={}, content={}", payload.length(), 
+        payload.substr(0, std::min(static_cast<size_t>(100), payload.length())));
+
     // Find the null terminator that separates the message type from the content
     size_t null_terminator = payload.find('\0');
     if (null_terminator == std::string::npos) {
@@ -248,13 +261,15 @@ std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(con
         return nullptr;
     }
 
-    std::string message_type = payload.substr(0, null_terminator);
-    std::string message_content = payload.substr(null_terminator + 1);
+    // Extract message type and content
+    std::string message_type(payload.data(), null_terminator);
+    std::string message_content(payload.data() + null_terminator + 1, 
+                                payload.length() - null_terminator - 1);
 
-    LOG(DEBUG, "Message type: {}", message_type);
+    LOG(DEBUG, "Message type: '{}', Content length: {}", message_type, message_content.length());
 
+    // Create the appropriate message object based on the type
     std::unique_ptr<google::protobuf::Message> message;
-
     if (message_type == "cspkg.AccountLoginReq") {
         message = std::make_unique<cspkg::AccountLoginReq>();
     } else if (message_type == "cspkg.AccountLoginRes") {
@@ -264,10 +279,11 @@ std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(con
     } else if (message_type == "cs_proto.OrderResponse") {
         message = std::make_unique<cs_proto::OrderResponse>();
     } else {
-        LOG(ERROR, "Unknown message type: {}", message_type);
+        LOG(ERROR, "Unknown message type: '{}'", message_type);
         return nullptr;
     }
 
+    // Parse the message content
     if (!message->ParseFromString(message_content)) {
         LOG(ERROR, "Failed to parse {} message", message_type);
         return nullptr;

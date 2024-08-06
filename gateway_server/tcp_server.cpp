@@ -114,7 +114,7 @@ int TcpServer::init(ServerStartModel model) {
     }
 
     // Start consuming from the order response topic
-    if (!kafka_manager_.start_consuming({"login_response_topic", "order_response_topic"}, "gateway_server_consumer_group", 
+    if (!kafka_manager_.start_consuming({ORDER_TO_GATEWAY_TOPIC}, GATEWAY_KAFKA_CONSUMER_GROUP_ID, 
         [this](const google::protobuf::Message& message) {
             this->handle_kafka_message(message);
         })) {
