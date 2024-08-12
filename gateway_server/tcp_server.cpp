@@ -185,7 +185,7 @@ void TcpServer::handle_login_response(const cspkg::AccountLoginRes& login_res) {
     if (client) {
         std::string encoded_response = TcpCode::encode(login_res);
         TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
-        LOG(INFO, "Sent login response to client for account {}", login_res.account());
+        LOG(INFO, "Sent login response to client for account: {}, length: {}", login_res.account(), encoded_response.size());
     } else {
         LOG(ERROR, "Client not found for account: {}", login_res.account());
     }
@@ -197,7 +197,7 @@ void TcpServer::handle_order_response(const cs_proto::OrderResponse& order_res) 
     if (client) {
         std::string encoded_response = TcpCode::encode(order_res);
         TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
-        LOG(INFO, "Sent order response to client {}", order_res.client_id());
+        LOG(INFO, "Sent order response to client: {}, length: {}", order_res.client_id(), encoded_response.size());
     } else {
         LOG(ERROR, "Client not found for index: {}", order_res.client_id());
     }
