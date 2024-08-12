@@ -1,0 +1,31 @@
+{
+    "server": {
+        "ip": "140.238.154.0",
+        "port": 9218
+    },
+    "simulation": {
+        "num_users": 1000,
+        "max_retry_attempts": 3,
+        "retry_delay_ms": 5000
+    },
+    "client": {
+        "connect_timeout_ms": 10000,
+        "read_timeout_ms": 10000,
+        "write_timeout_ms": 10000
+    },
+    "order": {
+        "symbols": ["BTCUSD", "ETHUSD", "LTCUSD"],
+        "min_quantity": 0.01,
+        "max_quantity": 10.0,
+        "min_price": 10000.0,
+        "max_price": 100000.0
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "../log/tcpclient.log"
+    },
+    "performance": {
+        "collect_metrics": true,
+        "report_interval_ms": 120000
+    }
+}
