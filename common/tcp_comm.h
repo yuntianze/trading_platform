@@ -42,12 +42,12 @@ typedef std::uint64_t ULONG;
 
 
 // Number of test connections for tcpclient
-const int MAX_CLIENT_CONN = 100;
+const int MAX_CLIENT_CONN = 10000;
 
 const size_t MAX_BUFFER_SIZE = 65536;  // Maximum buffer size for reading and writing
 
 // Maximum number of connections handled by tcpsvr
-const int MAX_SOCKET_NUM = 200;
+const int MAX_SOCKET_NUM = 10000;
 
 const int SOCK_RECV_BUFFER = 512*1024;
 const int SOCK_SEND_BUFFER = 512*1024;
@@ -70,7 +70,7 @@ const int CSPKG_OPT_BUFFSIZE = RECV_BUF_LEN*2;
 const int MAX_SEND_PKGNUM = 512;
 
 // Client timeout in seconds
-const int CLIENT_TIMEOUT = 300;  // 5 minutes
+const int CLIENT_TIMEOUT = 600;  // 10 minutes
 
 // System common data structure definitions
 

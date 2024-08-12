@@ -57,7 +57,7 @@ cs_proto::OrderResponse OrderProcessor::process_new_order(const cs_proto::Future
 }
 
 void OrderProcessor::send_order_to_matching(const cs_proto::FuturesOrder& order) {
-    kafka_manager_.produce("matching_orders_topic", order, order.client_id());
+    // kafka_manager_.produce("matching_orders_topic", order, order.client_id());
     LOG(INFO, "Order sent to matching engine: Order ID {}, Client ID {}", order.order_id(), order.client_id());
 }
 
