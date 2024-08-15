@@ -1,5 +1,4 @@
 #include "kafka_manager.h"
-#include <thread>
 #include <chrono>
 
 using namespace cs_proto;
@@ -36,7 +35,9 @@ bool KafkaManager::init(const std::string& bootstrap_servers,
         conf->set("security.protocol", "SASL_SSL", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("sasl.mechanism", "PLAIN", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("sasl.username", username_, errstr) != RdKafka::Conf::CONF_OK ||
-        conf->set("sasl.password", password_, errstr) != RdKafka::Conf::CONF_OK) {
+        conf->set("sasl.password", password_, errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("message.send.max.retries", "3", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("retry.backoff.ms", "500", errstr) != RdKafka::Conf::CONF_OK) {
         LOG(ERROR, "Failed to set Kafka configuration: {}", errstr);
         delete conf;
         return false;
@@ -120,6 +121,7 @@ bool KafkaManager::produce(const std::string& topic, const google::protobuf::Mes
     }
 
     producer_->poll(0);  // Trigger delivery report callbacks
+    producer_->flush(1000);  // Flush with 1s timeout to ensure message is sent
     return true;
 }
 
@@ -136,7 +138,9 @@ bool KafkaManager::start_consuming(const std::vector<std::string>& topics, const
     // Set Kafka consumer configuration
     if (conf->set("bootstrap.servers", bootstrap_servers_, errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("group.id", group_id, errstr) != RdKafka::Conf::CONF_OK ||
-        conf->set("auto.offset.reset", "earliest", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("auto.offset.reset", "latest", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("enable.auto.commit", "false", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("max.poll.interval.ms", "300000", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("security.protocol", "SASL_SSL", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("sasl.mechanism", "PLAIN", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("sasl.username", username_, errstr) != RdKafka::Conf::CONF_OK ||
@@ -199,39 +203,30 @@ void KafkaManager::process_messages() {
 // Consumer thread function
 void KafkaManager::consume_loop(MessageCallback callback) {
     while (running_) {
-        std::unique_ptr<RdKafka::Message> msg(consumer_->consume(100));  // 100ms timeout
-
-        switch (msg->err()) {
-            case RdKafka::ERR__TIMED_OUT:
-                // No message received within timeout, this is normal
-                // LOG(DEBUG, "Consume timed out");
+        std::vector<std::unique_ptr<RdKafka::Message>> messages;
+        for (int i = 0; i < 100; ++i) {  // Consume up to 100 messages at once
+            std::unique_ptr<RdKafka::Message> msg(consumer_->consume(10));  // 10ms timeout
+            if (msg->err() == RdKafka::ERR_NO_ERROR) {
+                messages.push_back(std::move(msg));
+            } else if (msg->err() != RdKafka::ERR__TIMED_OUT) {
                 break;
+            }
+        }
 
-            case RdKafka::ERR_NO_ERROR:
-                {
-                    if (msg->len() == 0) {
-                        LOG(DEBUG, "Received empty message");
-                        break;
-                    }
-                    std::string payload(static_cast<const char*>(msg->payload()), msg->len());
-                    LOG(DEBUG, "Received message with length: {}", msg->len());
-                    auto protobuf_message = deserialize_message(payload);
-                    if (protobuf_message) {
-                        callback(*protobuf_message);
-                    } else {
-                        LOG(ERROR, "Failed to deserialize message");
-                    }
+        for (const auto& msg : messages) {
+            if (msg->len() > 0) {
+                std::string payload(static_cast<const char*>(msg->payload()), msg->len());
+                auto protobuf_message = deserialize_message(payload);
+                if (protobuf_message) {
+                    callback(*protobuf_message);
+                } else {
+                    LOG(ERROR, "Failed to deserialize message");
                 }
-                break;
+            }
+        }
 
-            case RdKafka::ERR__PARTITION_EOF:
-                // Reached end of partition, not an error
-                LOG(DEBUG, "Reached end of partition");
-                break;
-
-            default:
-                LOG(ERROR, "Consume error: {}", msg->errstr());
-                break;
+        if (!messages.empty()) {
+            consumer_->commitSync();  // Commit offsets synchronously
         }
     }
 }
@@ -249,10 +244,6 @@ void KafkaManager::DeliveryReportCb::dr_cb(RdKafka::Message& message) {
 // Helper function to deserialize protobuf message
 std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(const std::string& payload) {
     LOG(DEBUG, "Attempting to deserialize message of length: {}", payload.length());
-
-    // Log the raw payload for debugging
-    LOG(DEBUG, "Raw payload: length={}, content={}", payload.length(), 
-        payload.substr(0, std::min(static_cast<size_t>(100), payload.length())));
 
     // Find the null terminator that separates the message type from the content
     size_t null_terminator = payload.find('\0');
@@ -280,6 +271,12 @@ std::unique_ptr<google::protobuf::Message> KafkaManager::deserialize_message(con
         message = std::make_unique<cs_proto::OrderResponse>();
     } else {
         LOG(ERROR, "Unknown message type: '{}'", message_type);
+        return nullptr;
+    }
+
+    // Parse the message content
+    if (!message->ParseFromString(message_content)) {
+        LOG(ERROR, "Failed to parse {} message", message_type);
         return nullptr;
     }
 

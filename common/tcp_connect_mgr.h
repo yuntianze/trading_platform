@@ -13,11 +13,41 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <chrono>
+#include <atomic>
 #include "tcp_comm.h"
 #include "role.pb.h"
 #include "futures_order.pb.h"
 
+// Class to manage and log statistics for the TCP connection manager
+class StatisticsManager {
+public:
+    StatisticsManager();
 
+    void increment_sent_packages();
+    void increment_received_packages();
+    void increment_active_connections();
+    void decrement_active_connections();
+    void update_connection_time(double time_ms);
+    void update_processing_time(double time_ms);
+
+    void reset();
+    void log_statistics();
+
+private:
+    std::atomic<uint64_t> sent_packages_;
+    std::atomic<uint64_t> received_packages_;
+    std::atomic<uint64_t> active_connections_;
+    std::atomic<uint64_t> total_connections_;
+    std::atomic<double> total_connection_time_;
+    std::atomic<double> total_processing_time_;
+    std::chrono::steady_clock::time_point last_reset_time_;
+
+    // Helper function to calculate rate
+    double calculate_rate(uint64_t count, double elapsed_seconds) const;
+};
+
+// Main TCP connection manager class
 class TcpConnectMgr {
 public:
     TcpConnectMgr();
@@ -77,6 +107,9 @@ public:
     // Send data to a client
     static int tcp_send_data(uv_stream_t* client, const char* databuf, int len);
 
+    // Get the statistics manager
+    StatisticsManager& get_statistics_manager() { return stats_manager_; }
+
 private:
     // Handle login request
     void handle_login_request(uv_stream_t* client, const cspkg::AccountLoginReq& login_req, int client_index);
@@ -91,8 +124,6 @@ private:
 
     char send_client_buf_[SOCK_SEND_BUFFER];  // Buffer for sending messages to clients
     int cur_conn_num_;   // Current number of connections
-    int send_pkg_count_;  // Count of sent packages
-    int recv_pkg_count_;  // Count of received packages
     time_t laststat_time_;   // Last statistics time
 
     // Map to store client handle to index mapping
@@ -105,6 +136,9 @@ private:
     int next_index_;
     // Kafka topic for gateway to order messages
     std::string gateway_to_order_topic_;
+
+    // Statistics manager
+    StatisticsManager stats_manager_;
 };
 
 // Implementation of inline methods
@@ -127,6 +161,7 @@ inline void TcpConnectMgr::remove_connection(uv_tcp_t* client) {
         client_sockconn_list_[it->second] = SocketConnInfo();  // Reset the slot
         client_to_index_.erase(it);
         --cur_conn_num_;
+        stats_manager_.decrement_active_connections();
     }
 }
 

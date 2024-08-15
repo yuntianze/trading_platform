@@ -185,7 +185,8 @@ void TcpServer::handle_login_response(const cspkg::AccountLoginRes& login_res) {
     if (client) {
         std::string encoded_response = TcpCode::encode(login_res);
         TcpConnectMgr::tcp_send_data((uv_stream_t*)client, encoded_response.c_str(), encoded_response.size());
-        LOG(INFO, "Sent login response to client for account: {}, length: {}", login_res.account(), encoded_response.size());
+        LOG(INFO, "Sent login response to client for account: {}, length: {}, client: {}",
+            login_res.account(), encoded_response.size(), login_res.client_id());
     } else {
         LOG(ERROR, "Client not found for account: {}", login_res.account());
     }

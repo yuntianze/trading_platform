@@ -112,8 +112,6 @@ struct CSPkgHead {
     ULONG client_ip; // Client IP address, for gamesvr to use in some statistics during operation
 };
 
-// Statistics interval time
-const int STAT_TIME = 60;
 
 // Statistical information
 struct StatInfo {

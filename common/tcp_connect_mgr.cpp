@@ -6,12 +6,90 @@
 #include "logger.h"
 #include "config_manager.h"
 
+// Implementation of StatisticsManager
+
+StatisticsManager::StatisticsManager()
+    : sent_packages_(0), received_packages_(0), active_connections_(0),
+      total_connections_(0), total_connection_time_(0), total_processing_time_(0),
+      last_reset_time_(std::chrono::steady_clock::now()) {}
+
+void StatisticsManager::increment_sent_packages() {
+    sent_packages_++;
+}
+
+void StatisticsManager::increment_received_packages() {
+    received_packages_++;
+}
+
+void StatisticsManager::increment_active_connections() {
+    active_connections_++;
+    total_connections_++;
+}
+
+void StatisticsManager::decrement_active_connections() {
+    if (active_connections_ > 0) {
+        active_connections_--;
+    }
+}
+
+void StatisticsManager::update_connection_time(double time_ms) {
+    double old_value = total_connection_time_.load(std::memory_order_relaxed);
+    double new_value = old_value + time_ms;
+    while (!total_connection_time_.compare_exchange_weak(old_value, new_value,
+                                                         std::memory_order_release,
+                                                         std::memory_order_relaxed)) {
+        new_value = old_value + time_ms;
+    }
+}
+
+void StatisticsManager::update_processing_time(double time_ms) {
+    double old_value = total_processing_time_.load(std::memory_order_relaxed);
+    double new_value = old_value + time_ms;
+    while (!total_processing_time_.compare_exchange_weak(old_value, new_value,
+                                                         std::memory_order_release,
+                                                         std::memory_order_relaxed)) {
+        new_value = old_value + time_ms;
+    }
+}
+
+void StatisticsManager::reset() {
+    sent_packages_ = 0;
+    received_packages_ = 0;
+    total_connections_ = active_connections_.load();
+    total_connection_time_ = 0;
+    total_processing_time_ = 0;
+    last_reset_time_ = std::chrono::steady_clock::now();
+}
+
+double StatisticsManager::calculate_rate(uint64_t count, double elapsed_seconds) const {
+    return elapsed_seconds > 0 ? count / elapsed_seconds : 0;
+}
+
+void StatisticsManager::log_statistics() {
+    auto now = std::chrono::steady_clock::now();
+    double elapsed_seconds = std::chrono::duration<double>(now - last_reset_time_).count();
+
+    double sent_rate = calculate_rate(sent_packages_, elapsed_seconds);
+    double received_rate = calculate_rate(received_packages_, elapsed_seconds);
+    double avg_connection_time = total_connections_ > 0 ? total_connection_time_ / total_connections_ : 0;
+    double avg_processing_time = received_packages_ > 0 ? total_processing_time_ / received_packages_ : 0;
+
+    LOG(INFO, "Gateway Server Statistics:");
+    LOG(INFO, "  Elapsed time: {:.2f} seconds", elapsed_seconds);
+    LOG(INFO, "  Sent packages: {} (Rate: {:.2f} pkg/s)", sent_packages_.load(), sent_rate);
+    LOG(INFO, "  Received packages: {} (Rate: {:.2f} pkg/s)", received_packages_.load(), received_rate);
+    LOG(INFO, "  Active connections: {}", active_connections_.load());
+    LOG(INFO, "  Total connections: {}", total_connections_.load());
+    LOG(INFO, "  Average connection time: {:.2f} ms", avg_connection_time);
+    LOG(INFO, "  Average processing time: {:.2f} ms", avg_processing_time);
+}
+
+// Implementation of TcpConnectMgr
+
 char* TcpConnectMgr::current_shmptr_ = nullptr;
 
 TcpConnectMgr::TcpConnectMgr() :
     cur_conn_num_(0),
-    send_pkg_count_(0),
-    recv_pkg_count_(0),
     laststat_time_(0),
     next_index_(0) {
 }
@@ -72,6 +150,9 @@ void TcpConnectMgr::handle_new_connection(uv_tcp_t* client) {
         return;
     }
 
+    // Increment active connections count
+    stats_manager_.increment_active_connections();
+
     LOG(INFO, "Handle new connection, index:{}, client ip:{}, total connections: {}",
             index, addr, cur_conn_num_);
 }
@@ -110,7 +191,7 @@ void TcpConnectMgr::alloc_buffer(uv_handle_t* handle, size_t suggested_size, uv_
 }
 
 TcpConnectMgr* TcpConnectMgr::create_instance() {
-    int shm_key = ConfigManager::instance().get_int("SOCKET_SHM_KEY");;
+    int shm_key = ConfigManager::instance().get_int("SOCKET_SHM_KEY");
     int shm_size = count_size();
     int assign_size = shm_size;
     current_shmptr_ = static_cast<char*>(ShmMgr::instance().create_shm(shm_key, shm_size, assign_size));
@@ -134,8 +215,6 @@ void TcpConnectMgr::operator delete(void* mem) {
 
 int TcpConnectMgr::init() {
     // Initialize connection-related variables
-    send_pkg_count_ = 0;
-    recv_pkg_count_ = 0;
     laststat_time_ = 0;
     cur_conn_num_ = 0;
 
@@ -153,8 +232,6 @@ int TcpConnectMgr::init() {
 }
 
 void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-    (void)buf;  // Unused
-    
     TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(client->loop->data);
     int index = (int)(intptr_t)client->data;
 
@@ -193,7 +270,6 @@ void TcpConnectMgr::on_read(uv_stream_t* client, ssize_t nread, const uv_buf_t* 
 
     // Free the buffer if it was dynamically allocated
     if (buf->base && buf->len == 0) {
-        LOG(DEBUG, "Freeing buffer for client {}", index);
         free(buf->base);
     }
 }
@@ -207,6 +283,9 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
         });
         return -1;
     }
+
+    // Start processing time
+    auto start_time = std::chrono::steady_clock::now();
 
     LOG(DEBUG, "Processing {} bytes from client {}", nread, index);
 
@@ -238,7 +317,7 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
             if (parsed_message) {
                 if (const auto* login_req = dynamic_cast<const cspkg::AccountLoginReq*>(parsed_message.get())) {
                     // Handle login request
-                    LOG(INFO, "Received AccountLoginReq from client {}", index);
+                    LOG(INFO, "Received AccountLoginReq from client {}, account {}", index, login_req->account());
                     handle_login_request(client, *login_req, index);
                 } else if (const auto* order = dynamic_cast<const cs_proto::FuturesOrder*>(parsed_message.get())) {
                     // Handle futures order
@@ -253,7 +332,6 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
 
             total_processed += packet_size;
             cur_conn.recv_bytes -= packet_size;
-            ++recv_pkg_count_;
         } else {
             LOG(DEBUG, "Incomplete packet, waiting for more data");
             break;
@@ -261,6 +339,12 @@ int TcpConnectMgr::process_client_data(uv_stream_t* client, ssize_t nread) {
     }
 
     cur_conn.buf_start = (cur_conn.buf_start + total_processed) % RECV_BUF_LEN;
+
+    // Update statistics
+    auto end_time = std::chrono::steady_clock::now();
+    double processing_time = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+    stats_manager_.update_processing_time(processing_time);
+    stats_manager_.increment_received_packages();
 
     LOG(INFO, "Processed {} bytes from client {}", total_processed, index);
     return 0;
@@ -291,13 +375,22 @@ void TcpConnectMgr::handle_futures_order(uv_stream_t* client, const cs_proto::Fu
 int TcpConnectMgr::tcp_send_data(uv_stream_t* client, const char* databuf, int len) {
     uv_buf_t buffer = uv_buf_init((char*)databuf, len);
     uv_write_t* req = (uv_write_t*)malloc(sizeof(uv_write_t));
+    req->data = client->data;  // Store client index in write request
     
     return uv_write(req, client, &buffer, 1, on_write);
 }
 
 void TcpConnectMgr::on_write(uv_write_t* req, int status) {
+    TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(req->handle->loop->data);
+    int client_index = (int)(intptr_t)req->data;
+
     if (status < 0) {
-        LOG(ERROR, "Write error: {}", uv_strerror(status));
+        LOG(ERROR, "Write error for client {}: {}", client_index, uv_strerror(status));
+    }
+    else {
+        LOG(DEBUG, "Write successful for client {}", client_index);
+        // Update statistics
+        mgr->stats_manager_.increment_sent_packages();
     }
     free(req);
 }
@@ -308,16 +401,16 @@ void TcpConnectMgr::check_wait_send_data() {
 }
 
 void TcpConnectMgr::check_timeout() {
+    static const int STATS_INTERVAL = 120;  // Log statistics every 120 seconds
+    static time_t last_stats_time = 0;
+
     time_t current_time = time(NULL);
     
     // Update statistics
-    if (current_time >= laststat_time_ + STAT_TIME) {
-        LOG(INFO, "Statistics: sent packages: {}, received packages: {}", 
-                    send_pkg_count_ / STAT_TIME, recv_pkg_count_ / STAT_TIME);
-
-        send_pkg_count_ = 0;
-        recv_pkg_count_ = 0;
-        laststat_time_ = current_time;
+    if (current_time >= last_stats_time + STATS_INTERVAL) {
+        stats_manager_.log_statistics();
+        stats_manager_.reset();
+        last_stats_time = current_time;
     }
 
     // Check for timed-out connections
@@ -330,13 +423,13 @@ void TcpConnectMgr::check_timeout() {
                 uv_handle_t* handle = (uv_handle_t*)client_sockconn_list_[i].handle;
                 if (!uv_is_closing(handle)) {
                     uv_close(handle, [](uv_handle_t* handle) {
-                        LOG(INFO, "Closed handle for client {}", (int)(intptr_t)handle->data);
+                        TcpConnectMgr* mgr = static_cast<TcpConnectMgr*>(handle->loop->data);
+                        int index = (int)(intptr_t)handle->data;
+                        LOG(INFO, "Closed handle for client {}", index);
+                        mgr->remove_connection((uv_tcp_t*)handle);
                         free(handle);
                     });
                 }
-                client_sockconn_list_[i].handle = nullptr;
-                --cur_conn_num_;
-                LOG(INFO, "Connection closed due to timeout. Total connections: {}", cur_conn_num_);
             }
         }
     }

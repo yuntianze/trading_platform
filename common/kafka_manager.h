@@ -13,6 +13,8 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <thread>
+#include <atomic>
 #include <librdkafka/rdkafkacpp.h>
 #include <google/protobuf/message.h>
 #include "role.pb.h"
@@ -44,7 +46,7 @@ public:
     // Flush all produced messages
     void flush(int timeout_ms);
 
-    // Process incoming Kafka messages
+    // Process incoming Kafka messages (now handled in consume_loop)
     void process_messages();
 
 private:
@@ -65,7 +67,7 @@ private:
     std::unique_ptr<RdKafka::KafkaConsumer> consumer_;
 
     // Flag to control consumption loop
-    bool running_;
+    std::atomic<bool> running_;
 
     // Delivery report callback
     class DeliveryReportCb : public RdKafka::DeliveryReportCb {

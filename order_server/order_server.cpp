@@ -109,10 +109,10 @@ void OrderServer::handle_login_request(const cspkg::AccountLoginReq& login_req) 
     cspkg::AccountLoginRes login_res = order_processor_.validate_login(login_req);
 
     // Send login response back to gateway_server
-    if (kafka_manager_.produce(order_to_gateway_topic_, login_res, login_req.account())) {
-        LOG(INFO, "Sent AccountLoginRes to Kafka for account {}", login_req.account());
+    if (kafka_manager_.produce(order_to_gateway_topic_, login_res, login_req.client_id())) {
+        LOG(INFO, "Sent AccountLoginRes to Kafka for account {}, client {}", login_req.account(), login_req.client_id());
     } else {
-        LOG(ERROR, "Failed to send AccountLoginRes to Kafka for account {}", login_req.account());
+        LOG(ERROR, "Failed to send AccountLoginRes to Kafka for account {}, client {}", login_req.account(), login_req.client_id());
     }
 
     if (login_res.result() == 0) {  // Login successful
