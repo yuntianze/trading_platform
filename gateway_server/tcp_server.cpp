@@ -1,4 +1,5 @@
 #include "tcp_server.h"
+#include <sys/resource.h>
 #include <string>
 #include "tcp_code.h"
 #include "logger.h"
@@ -42,6 +43,30 @@ int TcpServer::init(ServerStartModel model) {
     if (init_daemon(model) != 0) {
         LOG(ERROR, "Failed to initialize as daemon");
         return -1;
+    }
+
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
+        LOG(INFO, "Current file descriptor limit: soft={}, hard={}", rl.rlim_cur, rl.rlim_max);
+
+        rlimit new_rl = rl;
+        new_rl.rlim_cur = new_rl.rlim_max;
+        
+        if (setrlimit(RLIMIT_NOFILE, &new_rl) == 0) {
+            LOG(INFO, "Successfully increased file descriptor limit to {}", new_rl.rlim_cur);
+        } else {
+            LOG(ERROR, "Failed to increase file descriptor limit: {}", strerror(errno));
+        }
+        
+        if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
+            LOG(INFO, "Updated file descriptor limit: soft={}, hard={}", rl.rlim_cur, rl.rlim_max);
+        }
+        
+        if (rl.rlim_cur < MAX_SOCKET_NUM) {
+            LOG(ERROR, "Current file descriptor limit ({}) is less than MAX_SOCKET_NUM ({}).", rl.rlim_cur, MAX_SOCKET_NUM);
+        }
+    } else {
+        LOG(ERROR, "Failed to get file descriptor limit: {}", strerror(errno));
     }
 
     // Load configuration

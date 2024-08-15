@@ -401,7 +401,7 @@ void TcpConnectMgr::check_wait_send_data() {
 }
 
 void TcpConnectMgr::check_timeout() {
-    static const int STATS_INTERVAL = 120;  // Log statistics every 120 seconds
+    static const int STATS_INTERVAL = 300;  // Log statistics every 300 seconds
     static time_t last_stats_time = 0;
 
     time_t current_time = time(NULL);
