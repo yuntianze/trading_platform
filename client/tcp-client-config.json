@@ -4,7 +4,7 @@
         "port": 9218
     },
     "simulation": {
-        "num_users": 1000,
+        "num_users": 950,
         "max_retry_attempts": 3,
         "retry_delay_ms": 5000
     },

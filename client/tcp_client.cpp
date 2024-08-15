@@ -124,12 +124,14 @@ int TcpClient::send_account_login_req() {
         return -1;
     }
 
-    LOG(INFO, "Sending account login request: account={}", uin_);
-
     int result = send_data(pkg.c_str(), pkg.size());
     if (result == 0) {
         requests_sent_++;
+        LOG(INFO, "Sending account login request ok: account={}, seq={}", uin_, requests_sent_);
+    } else {
+        LOG(ERROR, "Failed to send account login request for client {}, last_req={}", uin_, requests_sent_);
     }
+
     return result;
 }
 
